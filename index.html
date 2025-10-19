@@ -37,12 +37,16 @@
     </script>
     
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
         /* --- General & Global Styles (Merged) --- */
         body {
             font-family: 'Inter', sans-serif;
             /* Applying new Navy/Dark Blue gradient */
             background-color: #101D38;
             background-image: linear-gradient(135deg, #101D38 0%, #1B325F 100%);
+            overflow-x: hidden;
         }
         .bebas-neue {
             font-family: 'Bebas Neue', sans-serif;
@@ -287,6 +291,66 @@
                 justify-self: end;
             }
         }
+
+        @media (max-width: 640px) {
+            .glass-panel {
+                padding: 1.5rem !important;
+                border-width: 2px;
+            }
+
+            .glass-outline {
+                padding: 1.5rem;
+            }
+
+            .gold-white-glow {
+                border-width: 3px;
+            }
+
+            .hero-metrics {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1.5rem;
+                text-align: left;
+            }
+
+            .hero-metrics > div {
+                width: 100%;
+            }
+
+            .digit-box {
+                width: 52px;
+                height: 78px;
+            }
+
+            .digit-text {
+                font-size: 4rem;
+            }
+
+            .modal-content {
+                width: 100%;
+                margin: 0 1rem;
+                padding: 1.5rem;
+            }
+
+            .orb:nth-child(1) {
+                width: 160px;
+                height: 160px;
+                top: -40px;
+                right: -20px;
+            }
+
+            .orb:nth-child(2) {
+                width: 130px;
+                height: 130px;
+                bottom: -20px;
+                left: -10px;
+            }
+
+            .orb:nth-child(3) {
+                width: 220px;
+                height: 220px;
+            }
+        }
     </style>
 </head>
 <body class="text-white min-h-screen flex flex-col">
@@ -386,7 +450,7 @@
                         <span class="h-1 w-1 rounded-full bg-ma-gold"></span>
                         <span>Brooklyn, NY</span>
                     </div>
-                    <h1 class="bebas-neue text-5xl sm:text-6xl lg:text-7xl leading-none text-white drop-shadow-[0_15px_35px_rgba(0,0,0,0.45)]">
+                    <h1 class="bebas-neue text-4xl sm:text-6xl lg:text-7xl leading-none text-white drop-shadow-[0_15px_35px_rgba(0,0,0,0.45)]">
                         Ignite community spirit.<br class="hidden lg:block">Fuel our sanctuary with light.
                     </h1>
                     <p class="text-base sm:text-lg text-gray-300 leading-relaxed max-w-xl">
@@ -400,12 +464,12 @@
                             Enter the Raffle
                         </a>
                     </div>
-                    <div class="flex items-center gap-6 pt-6 border-t border-white/10 text-gray-300 text-sm">
+                    <div class="hero-metrics flex items-center gap-6 pt-6 border-t border-white/10 text-gray-300 text-sm">
                         <div>
                             <p class="font-semibold text-white">200+ young adults</p>
                             <p class="text-gray-400">gathered weekly for tefillah</p>
                         </div>
-                        <div class="hidden sm:block h-10 w-px bg-white/10"></div>
+                        <div class="hidden sm:block h-10 w-px bg-white/10 divider-line"></div>
                         <div>
                             <p class="font-semibold text-white">15+ shiurim &amp; programs</p>
                             <p class="text-gray-400">energizing young professionals</p>
@@ -414,7 +478,7 @@
                 </div>
                 <div class="relative">
                     <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-ma-gold/20 via-transparent to-white/5 blur-3xl"></div>
-                    <div class="relative glass-outline rounded-3xl p-10 lg:p-12">
+                    <div class="relative glass-outline rounded-3xl p-6 sm:p-8 lg:p-12">
                         <div class="space-y-6">
                             <h2 class="bebas-neue text-4xl text-ma-gold">Our Vision</h2>
                             <p class="text-gray-300 leading-relaxed">
