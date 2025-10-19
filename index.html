@@ -2,51 +2,84 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magen Avraham Minyan - Spin to Win</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magen Avraham Young Adult Minyan - Spin to Win Raffle</title>
+
+    <!-- Metadata for SEO and Identity -->
+    <meta name="description" content="Official Spin to Win Raffle for Magen Avraham Young Adult Minyan. Win a Rolex Datejust 41 or $15,000 cash.">
+    <meta name="keywords" content="Magen Avraham, Young Adult Minyan, Raffle, Rolex, Charity, Spin to Win, Brooklyn, Synagogue">
+    <meta name="author" content="Saul Setton">
+    <!-- Favicon using the logo URL as a placeholder -->
+    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Stripe CSS for payment element is handled by Stripe JS -->
+    
+    <!-- Custom Tailwind Configuration for Magen Avraham Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Logo Colors
+                        'ma-navy': '#1B325F',
+                        'ma-gold': '#B89A5F',
+                        // Darker shade for gradient start
+                        'ma-dark': '#101D38', 
+                        // Complementary dark for inner panels/cards
+                        'ma-slate': '#2B3141', 
+                    }
+                }
+            }
+        }
+    </script>
     
     <style>
         /* --- General & Global Styles (Merged) --- */
         body { 
             font-family: 'Inter', sans-serif;
-            background-color: #0d1222;
-            background-image: linear-gradient(135deg, #0d1222 0%, #151a2d 100%);
+            /* Applying new Navy/Dark Blue gradient */
+            background-color: #101D38;
+            background-image: linear-gradient(135deg, #101D38 0%, #1B325F 100%);
         }
         .bebas-neue { 
             font-family: 'Bebas Neue', sans-serif; 
         }
 
-        /* --- Header Specific Mobile Styles --- */
-        @media (max-width: 767px) {
-            #main-menu li {
-                width: 100%; /* Make list items take full width on mobile */
-            }
-            #main-menu li a {
-                display: block;
-                text-align: center;
-                padding: 0.75rem 1rem; /* Added padding for touch targets */
-            }
-            #main-menu li:last-child a {
-                margin-top: 0.5rem; /* Separates the Donate button slightly */
-            }
+        /* --- Custom Glow Class for Prize Card --- */
+        .gold-white-glow {
+            /* Primary gold border */
+            border: 4px solid #B89A5F;
+            /* Custom multi-color shadow for the glow effect */
+            box-shadow: 
+                0 0 15px rgba(255, 255, 255, 0.4),  /* Bright white inner glow */
+                0 0 30px rgba(255, 255, 255, 0.1),  /* Soft white middle glow */
+                0 0 45px 5px #B89A5F,              /* Intense gold shadow */
+                0 0 70px 15px #B89A5F80;           /* Wide gold aura */
         }
 
         /* --- Spin Page Specific Styles --- */
         .glass-panel {
-            background: rgba(43, 49, 63, 0.4);
+            /* Using a darker slate/navy transparency */
+            background: rgba(43, 49, 63, 0.4); 
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            
+            /* ADDED: Gold and White Glow to the entire container */
+            border: 4px solid #B89A5F; /* Primary gold border */
+            box-shadow: 
+                0 0 15px rgba(255, 255, 255, 0.4),  /* Bright white inner glow */
+                0 0 30px rgba(255, 255, 255, 0.1),  /* Soft white middle glow */
+                0 0 45px 5px #B89A5F,              /* Intense gold shadow */
+                0 0 70px 15px #B89A5F80;           /* Wide gold aura */
         }
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        /* Spinner now uses ma-gold border */
         .spinner {
           animation: spin 0.8s linear infinite;
         }
@@ -63,21 +96,15 @@
         /* Target Blink for Result (Final 3-second display) */
         .result-blink-red {
             animation: red-flash 0.3s linear infinite alternate;
-            color: #ef4444 !important; /* Tailwind red-500 */
+            color: #ef4444 !important; /* Keep Red for urgency */
         }
         @keyframes red-flash {
             from { opacity: 1; color: #ef4444; }
-            to { opacity: 0.2; color: #facc15; } /* Fade to yellow-400 for contrast */
+            /* Fade to the new Gold color for contrast */
+            to { opacity: 0.2; color: #B89A5F; } 
         }
         .relative-container {
             position: relative;
-        }
-        .absolute-spinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 20; /* Ensure spinner is on top */
         }
         
         /* Modal-specific styles */
@@ -104,23 +131,14 @@
             transform: scale(0.9);
             transition: transform 0.3s ease-out;
         }
-        .modal-content.is-active {
-            transform: scale(1);
-        }
-
-        /* Prize Modal Overrides */
-        #prize-modal {
-            z-index: 110; 
-        }
 
         /* --- STATIC SCOREBOARD STYLES --- */
         .digit-box {
-            /* The dimensions remain the same for the visual style */
             width: 60px;
             height: 90px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-            background-color: #1e293b; /* Slate-800 equivalent */
+            background-color: #1e293b; /* Maintain a dark digital background */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -135,12 +153,12 @@
         }
         
         .digit-text {
-            color: #fde047; /* Yellow-400 */
+            /* Now using the new Gold color */
+            color: #B89A5F; 
             font-size: 5rem;
             line-height: 1; 
             font-family: 'Bebas Neue', sans-serif;
             text-align: center;
-            /* Fine-tune vertical alignment for the Bebas Neue font */
             transform: translateY(10%); 
         }
         @media (min-width: 768px) {
@@ -148,151 +166,176 @@
                 font-size: 7rem;
             }
         }
+        /* Mobile-specific Header adjustments for centering */
+        @media (max-width: 767px) {
+            .mobile-header-grid {
+                /* Use a subtle grid for mobile alignment: logo/button on sides, title in center column */
+                display: grid;
+                /* Updated grid to 0.5rem gap, and using auto 1fr auto */
+                grid-template-columns: auto 1fr auto; 
+                gap: 0.5rem;
+                align-items: center;
+                width: 100%;
+            }
+            .mobile-title {
+                text-align: center;
+                min-width: 0; 
+                line-height: 1.1; 
+                font-size: 0.9rem; 
+                justify-self: center; 
+            }
+            .mobile-logo-wrapper {
+                grid-column: 1;
+                justify-self: start;
+            }
+            .mobile-button-wrapper {
+                /* Hidden/empty slot for the removed button */
+                grid-column: 3;
+                justify-self: end;
+                width: 0;
+            }
+        }
     </style>
 </head>
 <body class="text-white min-h-screen flex flex-col">
 
     <!-- Global Loading Overlay -->
-    <div id="globalLoadingOverlay" class="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 hidden">
-        <div class="spinner w-12 h-12 border-4 border-t-4 border-yellow-400 border-opacity-20 rounded-full"></div>
+    <div id="globalLoadingOverlay" class="fixed inset-0 z-[100] bg-ma-dark/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 hidden">
+        <div class="spinner w-12 h-12 border-4 border-t-4 border-ma-gold border-opacity-20 rounded-full"></div>
         <p id="globalSpinnerText" class="text-white text-xl font-semibold">Loading...</p>
     </div>
 
     <!-- Custom Popup Modal -->
     <div id="customPopupOverlay" class="fixed inset-0 z-[101] bg-black/75 flex items-center justify-center p-4 hidden">
-        <div id="customPopup" class="bg-gray-800 p-8 rounded-lg shadow-2xl max-w-sm w-full text-center scale-95 transition-all duration-300">
-            <h2 id="popupTitle" class="bebas-neue text-3xl font-bold text-yellow-400 mb-4"></h2>
+        <div id="customPopup" class="bg-ma-slate p-8 rounded-lg shadow-2xl max-w-sm w-full text-center scale-95 transition-all duration-300">
+            <h2 id="popupTitle" class="bebas-neue text-3xl font-bold text-ma-gold mb-4"></h2>
             <p id="popupMessage" class="text-gray-300 text-lg mb-6"></p>
-            <button id="popupCloseButton" class="w-full py-3 rounded-full bg-yellow-400 text-black font-bold hover:bg-yellow-500 transition-colors">OK</button>
+            <button id="popupCloseButton" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">OK</button>
         </div>
     </div>
 
     <!-- Spinning Wheel Modal -->
     <div id="spinModal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="bebas-neue text-3xl font-bold text-yellow-400 mb-4">Spinning... </h2>
-            <div class="bg-slate-700/60 w-64 h-64 mx-auto flex items-center justify-center rounded-full shadow-lg border-4 border-yellow-400/20 mb-8">
-                <!-- Class handled in JS now: when spinning, adds 'flashing-text'; when revealing, adds 'result-blink-red' -->
+            <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">Spinning... </h2>
+            <!-- Updated border color to Gold -->
+            <div class="bg-slate-700/60 w-64 h-64 mx-auto flex items-center justify-center rounded-full shadow-lg border-4 border-ma-gold/20 mb-8">
                 <p id="modalFlashingNumber" class="bebas-neue text-8xl font-bold text-white"></p> 
             </div>
             <div id="modalResultDisplay" class="hidden">
-                <p class="bebas-neue text-4xl font-bold text-yellow-400">Your Ticket Price:</p>
+                <p class="bebas-neue text-4xl font-bold text-ma-gold">Your Ticket Price:</p>
                 <p id="modalWinningTicketNumber" class="bebas-neue text-6xl font-bold text-white mt-2"></p> 
             </div>
         </div>
     </div>
 
-    <!-- Header (Fixed to the top, using the extracted content) -->
+    <!-- Header (Fixed to the top) -->
     <header class="bg-black/40 py-4 px-4 md:px-12 fixed w-full top-0 z-50 shadow-2xl backdrop-blur-sm">
-        <nav class="container mx-auto flex justify-between items-center flex-wrap md:flex-nowrap">
-            <div class="flex items-center justify-between w-full md:w-auto">
-                <!-- Logo: Updated for Magen Avraham Minyan -->
-                <a href="/" class="flex items-center space-x-2">
-                    <img src="https://raw.githubusercontent.com/ToratYosef/ToratYosef..github.io/refs/heads/main/assets/logos.jpeg" alt="Magen Avraham Minyan Logo" class="h-14 sm:h-16 md:h-20 w-auto rounded-full ring-2 ring-yellow-400 p-1">
+        <nav class="container mx-auto flex justify-between items-center">
+            
+            <!-- Mobile/Desktop Header Structure -->
+            <div class="hidden md:flex items-center w-full justify-between">
+                <!-- Desktop: Logo Left, Title Center, Button Right -->
+                <a href="/" class="flex-shrink-0 flex items-center space-x-2 z-10">
+                    <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg" alt="Magen Avraham Young Adult Minyan Logo" class="h-14 sm:h-16 w-auto rounded-full ring-2 ring-ma-gold p-1">
                 </a>
-                <!-- Mobile Menu Toggle Button -->
-                <button id="menu-toggle" class="md:hidden text-white focus:outline-none" aria-label="Toggle menu">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
+                <div class="absolute left-1/2 transform -translate-x-1/2 hidden md:block z-0">
+                    <h2 class="bebas-neue text-2xl font-bold text-white tracking-widest text-center">
+                        MAGEN AVRAHAM YOUNG ADULT MINYAN
+                    </h2>
+                </div>
+                <div class="flex-shrink-0 ml-auto md:ml-0">
+                    <a href="#spin-to-win-section" class="py-2 px-4 rounded-full bg-ma-gold text-ma-navy hover:bg-ma-gold/80 transition-colors duration-300 font-bold whitespace-nowrap">Buy Ticket</a>
+                </div>
             </div>
 
-            <!-- Navigation Links (Simplified - removed split-the-pot and leaderboard) -->
-            <ul id="main-menu" class="hidden md:flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-8 text-base font-semibold w-full md:w-auto mt-4 md:mt-0">
-                <!-- Donate button styling updated for block display on mobile -->
-                <li><a href="/home/" class="py-2 px-4 rounded-full bg-yellow-400 text-black hover:bg-yellow-500 transition-colors duration-300 font-bold block">Home</a></li>
-            </ul>
+            <div class="md:hidden mobile-header-grid w-full">
+                <!-- Mobile: Grid for Logo, Title, Button (Removed) -->
+                
+                <!-- 1. Logo (Left, Wider) -->
+                <div class="mobile-logo-wrapper">
+                    <a href="/" class="flex-shrink-0 flex items-center space-x-2 z-10">
+                        <!-- Logo size increased on mobile -->
+                        <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg" alt="Magen Avraham Young Adult Minyan Logo" class="h-16 w-auto rounded-full ring-2 ring-ma-gold p-1">
+                    </a>
+                </div>
+
+                <!-- 2. Responsive Title (Center) -->
+                <h2 class="mobile-title bebas-neue text-base font-bold text-white tracking-widest px-2">
+                    MAGEN AVRAHAM YOUNG ADULT MINYAN
+                </h2>
+
+                <!-- 3. Buy Ticket Button (Removed/Empty for centering) -->
+                <div class="mobile-button-wrapper">
+                    <!-- This div remains empty to maintain the 3-column grid structure for centering -->
+                </div>
+            </div>
+            
         </nav>
     </header>
     <!-- End Header -->
 
-    <main class="flex-grow pt-24 sm:pt-28 px-4 md:px-8 lg:px-16"> <!-- Increased padding top to account for fixed header -->
+    <main class="flex-grow pt-24 sm:pt-28 px-4 md:px-8 lg:px-16">
         <section id="spin-to-win-section">
             <div class="container mx-auto text-center p-4 sm:p-6 md:p-12 glass-panel rounded-2xl shadow-2xl">
-                <h1 class="bebas-neue text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 drop-shadow-lg">
-                    Spin to Win - 3 Guaranteed Winners!
+                <h1 class="bebas-neue text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-ma-gold mb-4 drop-shadow-lg">
+                    Spin to Win - 1 Guaranteed Winner!
                 </h1>
                 <p class="text-base sm:text-lg md:text-xl text-gray-300 mb-8">
-                    You might pay as little as $1 and win one of three luxury prizes or cash equivalents!
+                    You might pay as little as $1 and win the grand prize or its cash equivalent!
                 </p>
 
-                <!-- Prize Display Section (Prizes kept the same) -->
+                <!-- Prize Display Section (Reduced to 1 Prize) -->
                 <div class="mb-12">
-                    <h2 class="bebas-neue text-3xl font-bold text-yellow-400 mb-4">Prizes (1st, 2nd, 3rd) </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <!-- Prize Card 1: Rolex Datejust (1st Prize / $15K Cash) -->
-                        <div class="prize-card bg-slate-700/60 p-6 rounded-xl shadow-lg transform transition duration-300 hover:scale-[1.02] cursor-pointer"
-                            data-name="1st Prize: Rolex Datejust 41 or $15,000 Cash"
+                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">The Grand Prize </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-1 max-w-2xl mx-auto gap-8">
+                        <!-- Prize Card 1: NOW USING GOLD-WHITE-GLOW CLASS -->
+                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
+                            data-name="Grand Prize: Rolex Datejust 41 or $15,000 Cash"
                             data-desc="The grand prize winner chooses the elegant Rolex Datejust 41 (White Gold Fluted, Jubilee bracelet) OR takes home a substantial $15,000 cash prize."
                             data-img="https://media.rolex.com/image/upload/q_auto:eco/f_auto/t_v7-majesty/c_limit,w_1600/v1/catalogue/2025/upright-c/m126334-0026"
                             onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-2xl text-yellow-400 mb-4">1st: Rolex or $15K</h3>
+                            <!-- Text color is ma-gold for branding -->
+                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">Rolex Datejust 41 or $15,000 Cash</h3>
                             <img src="https://media.rolex.com/image/upload/q_auto:eco/f_auto/t_v7-majesty/c_limit,w_600/v1/catalogue/2025/upright-c/m126334-0026" 
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/fde047?text=Rolex+1st'"
-                                alt="Rolex Datejust White Gold Fluted" class="w-full h-auto rounded-lg mb-4 object-contain max-h-48">
-                            <p class="text-gray-300 text-sm">Rolex Datejust 41 or $15,000</p>
-                        </div>
-
-                        <!-- Prize Card 2: Rolex Datejust (2nd Prize / $10K Cash) -->
-                        <div class="prize-card bg-slate-700/60 p-6 rounded-xl shadow-lg transform transition duration-300 hover:scale-[1.02] cursor-pointer"
-                            data-name="2nd Prize: Rolex Datejust 41 or $10,000 Cash"
-                            data-desc="The second prize winner chooses the classic Rolex Datejust 41 (Oystersteel, smooth bezel, Oyster bracelet) OR takes home a $10,000 cash prize."
-                            data-img="https://media.rolex.com/image/upload/q_auto:eco/f_auto/t_v7-majesty/c_limit,w_1600/v1/catalogue/2025/upright-c/m126300-0002"
-                            onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-2xl text-yellow-400 mb-4">2nd: Rolex or $10K</h3>
-                            <img src="https://media.rolex.com/image/upload/q_auto:eco/f_auto/t_v7-majesty/c_limit,w_600/v1/catalogue/2025/upright-c/m126300-0002" 
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/fde047?text=Rolex+2nd'"
-                                alt="Rolex Datejust Oystersteel" class="w-full h-auto rounded-lg mb-4 object-contain max-h-48">
-                            <p class="text-gray-300 text-sm">Rolex Datejust 41 or $10,000</p>
-                        </div>
-
-                        <!-- Prize Card 3: Breitling Chronomat (3rd Prize / $7.5K Cash) -->
-                        <div class="prize-card bg-slate-700/60 p-6 rounded-xl shadow-lg transform transition duration-300 hover:scale-[1.02] cursor-pointer"
-                            data-name="3rd Prize: Breitling Chronomat or $7,500 Cash"
-                            data-desc="The third prize winner chooses the technical Breitling Chronomat B01 42 or takes home a $7,500 cash prize."
-                            data-img="https://www.breitling.com/api/image-proxy/www-breitling.eu.saleor.cloud/media/thumbnails/products/ab0156161c1a1-soldier_31cb0756_thumbnail_1024.webp?imwidth=1920&format=auto"
-                            onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-2xl font-bold text-yellow-400 mb-2">3rd: Breitling or $7.5K</h3>
-                            <img src="https://www.breitling.com/api/image-proxy/www-breitling.eu.saleor.cloud/media/thumbnails/products/ab0156161c1a1-soldier_31cb0756_thumbnail_1024.webp?imwidth=600&format=auto" 
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/fde047?text=Breitling+3rd'"
-                                alt="Breitling Chronomat" class="w-full h-auto rounded-lg mb-4 object-contain max-h-48">
-                            <p class="text-gray-300 text-sm">Breitling Watch or $7,500</p>
+                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Grand+Prize'"
+                                alt="Rolex Datejust White Gold Fluted" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
+                            <!-- Text color is white for general legibility -->
+                            <p class="text-white text-base font-semibold">One winner. One incredible prize. Your ticket is your chance!</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Live Counter (STATIC SCOREBOARD STRUCTURE) -->
                 <div class="mb-12">
-                    <h2 class="bebas-neue text-3xl font-bold text-yellow-400 mb-4">Tickets Left (1 - 350)</h2>
-                    <!-- Scoreboard Container: Only 3 digits needed for up to 350 -->
+                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">Tickets Left (1 - 350)</h2>
                     <div id="ticketsLeftDisplay" class="flex justify-center space-x-2 md:space-x-3 lg:space-x-4">
-                        <!-- Digit 1 (Hundreds) -->
                         <div id="digit-hundreds" class="digit-box"></div>
-                        <!-- Digit 2 (Tens) -->
                         <div id="digit-tens" class="digit-box"></div>
-                        <!-- Digit 3 (Ones) -->
                         <div id="digit-ones" class="digit-box"></div>
                     </div>
                 </div>
                 <!-- End Live Counter -->
 
-                <!-- How it Works Section (Updated ticket range) -->
+                <!-- How it Works Section -->
                 <div class="mb-12">
-                    <h2 class="bebas-neue text-3xl font-bold text-yellow-400 mb-4">How It Works </h2>
+                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">How It Works </h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div class="bg-slate-700/60 p-6 rounded-xl shadow-lg">
-                            <p class="bebas-neue text-4xl text-yellow-400 mb-2">1</p>
+                        <div class="bg-ma-slate/60 p-6 rounded-xl shadow-lg">
+                            <p class="bebas-neue text-4xl text-ma-gold mb-2">1</p>
                             <h3 class="bebas-neue text-2xl font-bold text-white mb-2">Prepay</h3>
-                            <p class="text-gray-300">Submit payment and get charged a random amount (between **$1 - $350**).</p>
+                            <p class="text-gray-300">Submit payment and get charged a random amount (between $1 - $350).</p>
                         </div>
-                        <div class="bg-slate-700/60 p-6 rounded-xl shadow-lg">
-                            <p class="bebas-neue text-4xl text-yellow-400 mb-2">2</p>
+                        <div class="bg-ma-slate/60 p-6 rounded-xl shadow-lg">
+                            <p class="bebas-neue text-4xl text-ma-gold mb-2">2</p>
                             <h3 class="bebas-neue text-2xl font-bold text-white mb-2">Take a Chance</h3>
                             <p class="text-gray-300">The system will assign you a random number, which is your ticket price.</p>
                         </div>
-                        <div class="bg-slate-700/60 p-6 rounded-xl shadow-lg">
-                            <p class="bebas-neue text-4xl text-yellow-400 mb-2">3</p>
-                            <h3 class="bebas-neue text-2xl font-bold text-white mb-2">Win Big (x3)</h3>
-                            <p class="text-gray-300">Each ticket number gives you a chance at one of the 3 grand prizes!</p>
+                        <!-- Updated Step 3 -->
+                        <div class="bg-ma-slate/60 p-6 rounded-xl shadow-lg">
+                            <p class="bebas-neue text-4xl text-ma-gold mb-2">3</p>
+                            <h3 class="bebas-neue text-2xl font-bold text-white mb-2">Win Big!</h3>
+                            <p class="text-gray-300">Your single ticket number gives you a chance at the grand prize!</p>
                         </div>
                     </div>
                 </div>
@@ -302,18 +345,18 @@
                     <div id="initial-form" class="space-y-4" autocomplete="off" novalidate>
                         <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Enter for a Chance to Win!</h2>
                         <div>
-                            <input type="text" id="spin-name" name="name" placeholder="Full Name" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-300" required>
+                            <input type="text" id="spin-name" name="name" placeholder="Full Name" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold transition-all duration-300" required>
                         </div>
                         <div>
-                            <input type="email" id="spin-email" name="email" placeholder="Email Address" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-300" required>
+                            <input type="email" id="spin-email" name="email" placeholder="Email Address" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold transition-all duration-300" required>
                         </div>
                         <div>
-                            <input type="tel" id="spin-phone" name="phone" placeholder="Phone Number" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-300" required>
+                            <input type="tel" id="spin-phone" name="phone" placeholder="Phone Number" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold transition-all duration-300" required>
                         </div>
                         
-                        <button id="spin-proceed-to-payment" class="w-full py-3 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold transition-colors duration-300 relative overflow-hidden">
+                        <button id="spin-proceed-to-payment" class="w-full py-3 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 relative overflow-hidden">
                             <span class="button-text">Proceed to Payment</span>
-                            <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-black border-opacity-20 rounded-full hidden"></div>
+                            <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
                         </button>
                     </div>
 
@@ -321,18 +364,20 @@
                     <div id="spin-stripe-payment-element" class="hidden">
                            <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Payment Details</h2>
                         <div id="spin-payment-element-container"></div>
-                        <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold transition-colors duration-300 hidden">
+                        <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden">
                             <span class="button-text">Pay Now</span>
-                            <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-black border-opacity-20 rounded-full hidden"></div>
+                            <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
                         </button>
                     </div>
                 </div>
             </div>
         </section>
+        
+        <!-- Removed About Section -->
 
     </main>
     
-    <!-- Prize Modal Structure -->
+    <!-- Prize Modal Structure (Kept the same) -->
     <div id="prize-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-[110] p-4 transition-opacity duration-300 opacity-0" 
         onclick="hidePrizeModal(event)">
         <div class="bg-slate-950 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-95" 
@@ -340,7 +385,8 @@
             
             <!-- Modal Header -->
             <div class="flex justify-between items-center p-6 border-b border-slate-800">
-                <h3 id="modal-title" class="bebas-neue text-3xl text-yellow-400">Prize Details</h3>
+                <!-- Title updated to Gold -->
+                <h3 id="modal-title" class="bebas-neue text-3xl text-ma-gold">Prize Details</h3>
                 <button onclick="hidePrizeModal()" class="text-gray-400 hover:text-white transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -360,7 +406,8 @@
                     <p id="modal-description" class="text-gray-300 text-lg leading-relaxed mb-6">
                         Detailed description of the prize will appear here.
                     </p>
-                    <button onclick="hidePrizeModal();" class="inline-block py-3 px-6 rounded-full bg-yellow-400 text-slate-950 font-bold hover:bg-yellow-500 transition-colors duration-300">
+                    <!-- Button updated to Gold background and Navy text -->
+                    <button onclick="hidePrizeModal();" class="inline-block py-3 px-6 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors duration-300">
                         Close & Spin
                     </button>
                 </div>
@@ -369,26 +416,15 @@
     </div>
     <!-- End Prize Modal Structure -->
     
-    <footer class="bg-black/40 py-8 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+    <!-- FOOTER (Simplified - Contact Info Removed) -->
+    <footer class="bg-black/40 py-6 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
         <div class="container mx-auto px-4 text-center">
-            <h3 class="bebas-neue text-3xl font-bold text-yellow-400 mb-4">Contact</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 text-gray-400 mb-8">
-                <div>
-                    <p class="font-bold text-white">Morris E.</p>
-                    <p>+1 (848)-282-6434</p>
-                </div>
-                <div>
-                    <p class="font-bold text-white">Jack B.</p>
-                    <p>+1 (347) 675-0226</p>
-                </div>
-                <div>
-                    <p class="font-bold text-white">Saul S.</p>
-                    <p>+1 (929)-584-5753</p>
-                </div>
-            </div>
-            <p class="text-sm text-gray-500 mt-8">
-                &copy; 2026 Magen Avraham Young Adult Minyan. All Rights Reserved.<br/>
-                Website created by Saul Setton
+            <p class="text-sm text-gray-500 mb-1">
+                &copy; 2026 Magen Avraham Young Adult Minyan. All Rights Reserved.
+            </p>
+            <p class="text-sm text-gray-500">
+                Website created by 
+                <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a>
             </p>
         </div>
     </footer>
@@ -472,8 +508,7 @@
             const popupTitle = document.getElementById('popupTitle');
             const popupMessage = document.getElementById('popupMessage');
             const popupCloseButton = document.getElementById('popupCloseButton');
-            const menuToggle = document.getElementById('menu-toggle');
-            const mainMenu = document.getElementById('main-menu');
+            // Removed menuToggle, mainMenu, mainMenuMobile DOM elements
 
             // Modal elements
             const spinModal = document.getElementById('spinModal');
@@ -483,13 +518,14 @@
             
             // --- Global State (UPDATED: 350 tickets) ---
             const TOTAL_SPIN_TICKETS = 350;
-            const SPIN_DURATION = 5000;
+            const SPIN_DURATION = 3000; // Updated to 3 seconds (3000ms)
             let elements;
             let spinTicketNumber = 0;
             let flashInterval;
 
-            // --- Stripe & Firebase Initialization (UPDATED: New Firebase Config) ---
-            const stripe = Stripe('pk_live_51JFiZnKhiMP0wjNsMlHMg2o7Eo6xaWczALlQ0eu0GVpnWel1Pgz1AbUVXUJGs2pFaavhaln5jKpHSrRhxrBppBDq00Hijyiu4V');
+            // --- Stripe & Firebase Initialization (UPDATED for SANDBOX) ---
+            // Stripe Test Public Key added here
+            const stripe = Stripe('pk_test_51RZEPeCMmspEQNuYXLdVBGpSSPewOBaH5d4eSIwrSDBeEsW9pBh7WAyDwFn8IzNyrYIY2SuV3pDXiNTmvJnr7YpC00JPzJh1lP'); 
 
             // Using the Firebase Config provided by the user for the Magen Avraham Young Adult Minyan project
             const firebaseConfig = {
@@ -615,11 +651,9 @@
 
             // --- Event Listeners ---
             popupCloseButton.addEventListener('click', hideCustomPopup);
-            menuToggle.addEventListener('click', () => { 
-                mainMenu.classList.toggle('hidden'); 
-                document.body.classList.toggle('overflow-hidden');
-            });
-
+            
+            // NOTE: Mobile menu functionality is removed/handled by CSS changes
+            
             // Initialize the scoreboard
             initializeScoreboard();
             
@@ -669,6 +703,12 @@
             spinStripePayButton.addEventListener('click', async (event) => {
                 event.preventDefault();
 
+                // Check if the Stripe Payment Element has actually mounted successfully
+                if (!elements || !document.getElementById('spin-payment-element-container').children.length) {
+                    showCustomPopup('Payment Setup Error', 'Payment environment failed to load. Please refresh the page.');
+                    return;
+                }
+
                 // Show the modal and start the spin animation immediately
                 spinStripePaymentElement.classList.add('hidden');
                 initialForm.classList.add('hidden');
@@ -701,7 +741,7 @@
                     setTimeout(() => {
                         // Stop spin, reveal number, start 3s red blink, then redirect
                         stopSpinAnimationAndReveal(spinTicketNumber);
-                    }, SPIN_DURATION); // Wait 5 seconds for the spin visualization
+                    }, SPIN_DURATION); // Wait 3 seconds for the spin visualization
 
                 } else {
                     console.log("Payment requires action or is pending. Letting Stripe handle the redirect flow.");

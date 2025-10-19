@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magen Avraham Admin Dashboard</title>
+    <meta name="description" content="Official Spin to Win Raffle for Magen Avraham Young Adult Minyan. Win a Rolex Datejust 41 or $15,000 cash.">
+    <meta name="keywords" content="Magen Avraham, Young Adult Minyan, Raffle, Rolex, Charity, Spin to Win, Brooklyn, Synagogue">
+    <meta name="author" content="Saul Setton">
+    <!-- Favicon using the logo URL as a placeholder -->
+    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Tailwind Configuration for Magen Avraham Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Logo Colors
+                        'ma-navy': '#1B325F',
+                        'ma-gold': '#B89A5F',
+                        // Darker shade for gradient start
+                        'ma-dark': '#101D38', 
+                        // Complementary dark for inner panels/cards
+                        'ma-slate': '#2B3141', 
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .bebas-neue { font-family: 'Bebas Neue', sans-serif; }
+        
+        body {
+            background-color: #101D38;
+            background-image: linear-gradient(135deg, #101D38 0%, #1B325F 100%);
+        }
+        
+        /* Style for the main container on the dashboard */
+        .dashboard-panel {
+            background: rgba(43, 49, 63, 0.4); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 4px solid #B89A5F; 
+            box-shadow: 
+                0 0 15px rgba(255, 255, 255, 0.4),  
+                0 0 30px rgba(255, 255, 255, 0.1),  
+                0 0 45px 5px #B89A5F,              
+                0 0 70px 15px #B89A5F80;          
+        }
+
+        /* Fixed height and scrolling for the table on small screens */
+        .table-container {
+            /* Adjust max-height to ensure stats bar and header are visible */
+            max-height: 55vh; 
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Table specific styles for spreadsheet look */
+        #ticketsTable th {
+            background-color: #1B325F; /* ma-navy */
+            color: #B89A5F; /* ma-gold */
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer; /* Indicate clickable for sorting */
+        }
+        #ticketsTable td, #ticketsTable th {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            white-space: nowrap;
+        }
+        /* Icon for sort direction */
+        .sort-icon {
+            margin-left: 0.5rem;
+            width: 0.75rem;
+            height: 0.75rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen flex flex-col">
+
+    <main id="app-container" class="flex-grow flex items-center justify-center p-4">
+        
+        <!-- Loading State -->
+        <div id="loading-state" class="text-center">
+            <svg class="animate-spin h-8 w-8 text-ma-gold mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-gray-300">Authenticating...</p>
+        </div>
+
+        <!-- Login Form State -->
+        <div id="login-state" class="hidden w-full max-w-sm dashboard-panel rounded-xl p-8 space-y-4">
+            <h1 class="bebas-neue text-4xl text-ma-gold text-center mb-6">Admin Sign-In</h1>
+            <input type="email" id="admin-email" placeholder="Email" class="w-full p-3 rounded-lg bg-ma-slate/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold" required>
+            <input type="password" id="admin-password" placeholder="Password" class="w-full p-3 rounded-lg bg-ma-slate/70 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold" required>
+            <button id="signin-button" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors duration-300">Sign In</button>
+            <p id="login-error" class="text-sm text-red-400 text-center hidden"></p>
+        </div>
+
+        <!-- Dashboard State -->
+        <div id="dashboard-state" class="hidden w-full max-w-7xl dashboard-panel rounded-xl p-6 md:p-8 space-y-6">
+            <div class="flex justify-between items-center flex-wrap gap-4 border-b border-ma-gold/50 pb-4">
+                <h1 class="bebas-neue text-3xl text-ma-gold">Raffle Ticket Sales</h1>
+                <div class="flex items-center space-x-4">
+                    <p class="text-sm text-gray-300">Logged in as: <span id="user-email-display" class="font-semibold text-white"></span></p>
+                    <button id="signout-button" class="py-2 px-4 rounded-full bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors duration-300">Sign Out</button>
+                </div>
+            </div>
+
+            <!-- Total Stats Bar & Cleanup Button -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <!-- Tickets Sold -->
+                <div class="bg-ma-slate/70 p-4 rounded-lg">
+                    <p class="bebas-neue text-2xl text-ma-gold" id="total-tickets-display">0/350</p>
+                    <p class="text-sm text-gray-400">Tickets Sold</p>
+                </div>
+                <!-- Total Revenue -->
+                <div class="bg-ma-slate/70 p-4 rounded-lg">
+                    <p class="bebas-neue text-2xl text-ma-gold" id="total-revenue-display">$0.00</p>
+                    <p class="text-sm text-gray-400">Total Revenue</p>
+                </div>
+                <!-- Reserved Tickets -->
+                <div class="bg-ma-slate/70 p-4 rounded-lg">
+                    <p class="bebas-neue text-2xl text-ma-gold" id="reserved-tickets-display">0</p>
+                    <p class="text-sm text-gray-400">Reserved Tickets</p>
+                </div>
+                <!-- Action Buttons Container -->
+                <div class="flex flex-col space-y-2 justify-center col-span-2 sm:col-span-1">
+                    <button id="cleanup-button" class="w-full py-2 px-4 rounded-full bg-red-600 text-white font-bold hover:bg-red-700 transition-colors duration-300 text-sm sm:text-base">
+                        Remove Reserved (> 7 min)
+                    </button>
+                    <!-- NEW EXPORT BUTTON -->
+                    <button id="export-button" class="w-full py-2 px-4 rounded-full bg-green-600 text-white font-bold hover:bg-green-700 transition-colors duration-300 text-sm sm:text-base">
+                        Export Paid (.xlsx)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Container (Scrollable) -->
+            <div class="table-container shadow-xl rounded-lg overflow-x-auto">
+                <table id="ticketsTable" class="w-full table-auto text-sm text-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="p-3" data-sort-key="id">Ticket #<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="status">Status<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="name">Purchaser Name<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="email">Email<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="phoneNumber">Phone<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="amountPaid">Amount Paid<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="timestamp">Timestamp<span class="sort-icon"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-table-body">
+                        <!-- Data rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+    <footer class="bg-black/40 py-6 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm text-gray-500 mb-1">
+                &copy; 2026 Magen Avraham Young Adult Minyan. All Rights Reserved.
+            </p>
+            <p class="text-sm text-gray-500">
+                Website created by 
+                <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a>
+            </p>
+        </div>
+    </footer>
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- REQUIRED for calling Cloud Functions -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script> 
+    
+    <!-- SheetJS (xlsx) Library for Exporting Excel Files -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <script>
+        // --- Configuration ---
+        const TOTAL_TICKETS = 350;
+        
+        // IMPORTANT: Use the actual Firebase Config for your Magen Avraham project
+        const firebaseConfig = {
+            apiKey: "AIzaSyDttfWf8sMAwAMZlCVfrU7-Jkc3QoCC6zM",
+            authDomain: "magenavrahamyoungadultminyan.firebaseapp.com",
+            projectId: "magenavrahamyoungadultminyan",
+            storageBucket: "magenavrahamyoungadultminyan.firebasestorage.app",
+            messagingSenderId: "487030053885",
+            appId: "1:487030053885:web:dc0c1a543d95b0c2e89794"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const functions = firebase.functions(); // Initialize functions
+
+        // --- DOM Elements ---
+        const loadingState = document.getElementById('loading-state');
+        const loginState = document.getElementById('login-state');
+        const dashboardState = document.getElementById('dashboard-state');
+        const adminEmailInput = document.getElementById('admin-email');
+        const adminPasswordInput = document.getElementById('admin-password');
+        const signInButton = document.getElementById('signin-button');
+        const signOutButton = document.getElementById('signout-button');
+        const loginError = document.getElementById('login-error');
+        const ticketsTableBody = document.getElementById('tickets-table-body');
+        const userEmailDisplay = document.getElementById('user-email-display');
+        const totalTicketsDisplay = document.getElementById('total-tickets-display');
+        const totalRevenueDisplay = document.getElementById('total-revenue-display');
+        const reservedTicketsDisplay = document.getElementById('reserved-tickets-display');
+        const ticketsTable = document.getElementById('ticketsTable');
+        
+        const cleanupButton = document.getElementById('cleanup-button'); 
+        const exportButton = document.getElementById('export-button'); 
+
+        // --- State Management ---
+        let tickets = []; // Global array to hold all fetched ticket data
+        let unsubscribe = null; 
+        let sortColumn = 'id';
+        let sortDirection = 'asc';
+
+        function renderState(state) {
+            loadingState.classList.add('hidden');
+            loginState.classList.add('hidden');
+            dashboardState.classList.add('hidden');
+
+            if (state === 'loading') {
+                loadingState.classList.remove('hidden');
+            } else if (state === 'login') {
+                loginState.classList.remove('hidden');
+            } else if (state === 'dashboard') {
+                dashboardState.classList.remove('hidden');
+            }
+        }
+
+        // --- Data Sorting Helper ---
+        function getNestedValue(obj, key) {
+            if (key === 'id') return parseInt(obj.id);
+            if (key === 'amountPaid') return parseFloat(obj.amountPaid || 0);
+            if (key === 'timestamp') return obj.timestamp ? obj.timestamp.toMillis() : 0;
+            return obj[key] ? obj[key].toString().toLowerCase() : '';
+        }
+
+        function sortData(key) {
+            if (sortColumn === key) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = key;
+                sortDirection = 'asc';
+            }
+
+            tickets.sort((a, b) => {
+                const valA = getNestedValue(a, key);
+                const valB = getNestedValue(b, key);
+
+                if (valA < valB) {
+                    return sortDirection === 'asc' ? -1 : 1;
+                }
+                if (valA > valB) {
+                    return sortDirection === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+
+            renderTicketsTable(tickets);
+            updateSortIcons();
+        }
+
+        function updateSortIcons() {
+            ticketsTable.querySelectorAll('th').forEach(th => {
+                const key = th.getAttribute('data-sort-key');
+                const icon = th.querySelector('.sort-icon');
+                if (icon) {
+                    icon.textContent = '';
+                    if (key === sortColumn) {
+                        icon.textContent = sortDirection === 'asc' ? '▲' : '▼';
+                    }
+                }
+            });
+        }
+
+
+        // --- Data Rendering ---
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return date.toLocaleString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function formatAmount(amount) {
+            if (typeof amount === 'number') {
+                return `$${amount.toFixed(2)}`;
+            }
+            return `$${parseFloat(amount || 0).toFixed(2)}`;
+        }
+
+        function renderTicketsTable(ticketData) {
+            
+            ticketsTableBody.innerHTML = '';
+            let ticketsSold = 0;
+            let totalRevenue = 0;
+            let reservedCount = 0;
+
+            ticketData.forEach(ticket => {
+                // Ensure amountPaid is stored as a number for reliable math
+                const amount = parseFloat(ticket.amountPaid || ticket.baseAmount || 0);
+
+                if (ticket.status === 'paid' || ticket.status === 'claimed') {
+                    ticketsSold++;
+                    totalRevenue += amount;
+                } else if (ticket.status === 'reserved') {
+                    reservedCount++;
+                }
+
+                const row = ticketsTableBody.insertRow();
+                // Set row background based on status
+                let rowBgClass = '';
+                if (ticket.status === 'paid') {
+                    rowBgClass = 'bg-ma-slate/70';
+                } else if (ticket.status === 'reserved') {
+                    rowBgClass = 'bg-ma-gold/20'; 
+                } else {
+                    rowBgClass = 'bg-red-900/50';
+                }
+
+                row.classList.add(rowBgClass, 'hover:bg-ma-slate/50');
+                
+                const statusTextColor = 
+                    ticket.status === 'paid' ? 'text-green-400' : 
+                    ticket.status === 'reserved' ? 'text-yellow-400' : 'text-red-400';
+
+                const paidAmount = formatAmount(amount);
+                const purchaseTimestamp = formatTimestamp(ticket.timestamp);
+
+                row.innerHTML = `
+                    <td class="font-bold text-lg text-ma-gold">${ticket.id}</td>
+                    <td class="${statusTextColor} font-semibold">${ticket.status.toUpperCase()}</td>
+                    <td>${ticket.name || 'N/A'}</td>
+                    <td class="text-xs">${ticket.email || 'N/A'}</td>
+                    <td class="text-xs">${ticket.phoneNumber || 'N/A'}</td>
+                    <td>${paidAmount}</td>
+                    <td class="text-gray-400 text-xs">${purchaseTimestamp}</td>
+                `;
+            });
+
+            // Update stats bar
+            totalTicketsDisplay.textContent = `${ticketsSold}/${TOTAL_TICKETS}`;
+            totalRevenueDisplay.textContent = formatAmount(totalRevenue);
+            reservedTicketsDisplay.textContent = reservedCount.toString();
+        }
+        
+        // --- Event Listeners ---
+
+        // Add event listeners to table headers for sorting
+        ticketsTable.querySelectorAll('th[data-sort-key]').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.getAttribute('data-sort-key');
+                sortData(key);
+            });
+        });
+
+        // --- Ticket Cleanup Logic ---
+        cleanupButton.addEventListener('click', async () => {
+            const confirmMessage = `Are you sure you want to remove all reserved tickets older than 7 minutes? This action cannot be undone.`;
+            
+            if (!window.confirm(confirmMessage)) { 
+                return;
+            }
+
+            cleanupButton.disabled = true;
+            cleanupButton.textContent = "Processing...";
+            
+            try {
+                // Ensure the functions object is available
+                if (!window.firebase.functions) {
+                    alert('Cloud Functions not initialized. Please check console for Firebase script errors.');
+                    return;
+                }
+                const deleteCallable = functions.httpsCallable('deleteExpiredReservedTickets');
+                
+                // Calls the Cloud Function, which defaults to 7 minutes
+                const { data } = await deleteCallable({});
+                
+                alert(`Cleanup Complete: ${data.message}`);
+            } catch (error) {
+                console.error("Cleanup failed:", error);
+                // Display the specific error message provided by the Cloud Function (if available)
+                const errorMessage = error.details?.message || error.message || 'An unknown error occurred during cleanup.';
+                alert(`Cleanup Failed: ${errorMessage}`);
+            } finally {
+                cleanupButton.disabled = false;
+                cleanupButton.textContent = "Remove Reserved (> 7 min)";
+            }
+        });
+
+        // --- Export to XLSX Logic ---
+        exportButton.addEventListener('click', () => {
+            if (tickets.length === 0) {
+                alert("No ticket data available to export.");
+                return;
+            }
+
+            // 1. Filter data to include only PAID orders
+            const paidData = tickets.filter(t => t.status === 'paid' || t.status === 'claimed');
+
+            if (paidData.length === 0) {
+                 alert("No PAID orders found to export.");
+                 return;
+            }
+
+            // 2. Map data to the desired spreadsheet format
+            const exportData = paidData.map(t => ({
+                'Ticket #': t.id,
+                'Status': t.status.toUpperCase(),
+                'Name': t.name || 'N/A',
+                'Email': t.email || 'N/A',
+                'Phone': t.phoneNumber || 'N/A',
+                'Amount Paid (USD)': parseFloat(t.amountPaid || t.baseAmount || 0).toFixed(2),
+                'Purchase Timestamp': formatTimestamp(t.timestamp),
+                'Payment Intent ID': t.paymentIntentId || 'N/A',
+            }));
+
+            // 3. Create and download the workbook using SheetJS
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Paid Tickets");
+            
+            const dateStr = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `Magen_Avraham_Paid_Tickets_${dateStr}.xlsx`);
+        });
+
+        // --- Firebase Listener ---
+        function setupFirestoreListener() {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+
+            // Query only paid, claimed, and reserved tickets
+            const q = db.collection('spin_tickets'); 
+            
+            unsubscribe = q.onSnapshot(querySnapshot => {
+                const ticketsData = [];
+                querySnapshot.forEach(doc => {
+                    // Normalize the amountPaid field from string to number if needed during fetch
+                    const data = doc.data();
+                    if (data.amountPaid && typeof data.amountPaid === 'string') {
+                        data.amountPaid = parseFloat(data.amountPaid);
+                    } else if (data.baseAmount && typeof data.baseAmount === 'string') {
+                        data.baseAmount = parseFloat(data.baseAmount);
+                    }
+                    ticketsData.push({ id: doc.id, ...data });
+                });
+                
+                tickets = ticketsData; 
+                // Initial render defaults to sorting by ticket ID ascending
+                sortData(sortColumn); 
+            }, error => {
+                console.error("Error reading Firestore:", error);
+                alert("Error loading ticket data. Check Firestore Security Rules.");
+            });
+        }
+
+
+        // --- Authentication Logic ---
+        signInButton.addEventListener('click', async () => {
+            const email = adminEmailInput.value.trim();
+            const password = adminPasswordInput.value.trim();
+            loginError.classList.add('hidden');
+
+            if (!email || !password) {
+                loginError.textContent = 'Please enter both email and password.';
+                loginError.classList.remove('hidden');
+                return;
+            }
+            
+            try {
+                signInButton.textContent = 'Signing In...';
+                signInButton.disabled = true;
+
+                await auth.signInWithEmailAndPassword(email, password);
+                
+            } catch (error) {
+                console.error("Login failed:", error.code, error.message);
+                loginError.textContent = 'Sign-in failed. Check credentials.';
+                loginError.classList.remove('hidden');
+            } finally {
+                signInButton.textContent = 'Sign In';
+                signInButton.disabled = false;
+            }
+        });
+
+        signOutButton.addEventListener('click', async () => {
+            if (unsubscribe) {
+                unsubscribe(); 
+            }
+            try {
+                await auth.signOut();
+            } catch (error) {
+                console.error("Sign-out error:", error);
+            }
+        });
+
+        // --- Auth State Observer ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // *** ENFORCED SECURITY CHECK: Must have an email (i.e., not Anonymous) ***
+                if (!user.email) {
+                    console.warn("Attempted access by non-email user (likely anonymous). Signing out.");
+                    auth.signOut();
+                    renderState('login');
+                    return; 
+                }
+                
+                userEmailDisplay.textContent = user.email;
+                setupFirestoreListener();
+                renderState('dashboard');
+            } else {
+                renderState('login');
+                // Clean up UI/inputs on sign-out
+                adminEmailInput.value = '';
+                adminPasswordInput.value = '';
+                loginError.classList.add('hidden');
+                ticketsTableBody.innerHTML = '';
+            }
+        });
+
+        // Start by rendering the loading state
+        renderState('loading');
+    </script>
+</body>
+</html>

@@ -1,17 +1,27 @@
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors'); 
 
 // IMPORTANT: Initialize the Firebase Admin SDK
 admin.initializeApp();
 
-// NOTE: It's crucial that the 'stripe' config variable is correctly set in your Firebase environment
-// Assuming the user will configure the Stripe secret key in the new project's environment variables
+// --- STRIPE INITIALIZATION ---
+// NOTE: For this sandbox environment, ensure you deploy this function to a separate Firebase 
+// project and set the 'stripe.secret_key' environment variable using your 
+// **Stripe TEST Secret Key** (sk_test_...).
 const stripe = require('stripe')(functions.config().stripe.secret_key);
 
-// Updated CORS origins for the new Magen Avraham Young Adult Minyan project
+// Updated CORS origins for sandbox and local testing
 const corsHandler = cors({
     origin: [
+        // Sandbox deployment environment (replace project-id with your testing project ID)
+        'https://us-central1-magenavrahamyoungadultminyan.cloudfunctions.net',
+        // Local development URLs
+        'http://localhost:3000',
+        'http://localhost:5000',
+        'http://127.0.0.1',
+        'http://localhost:8080',
+        // Production/Testing web app URLs (use only in sandbox if necessary)
         'https://magenavrahamyoungadultminyan.web.app',
         'https://www.magenavrahamyoungadultminyan.web.app'
     ],
@@ -31,10 +41,18 @@ function cleanAmount(value) {
 }
 
 /**
- * Checks if the user is authorized as a super admin (Super Admin is the only required role now).
+ * Checks if the user is authorized as a super admin.
  */
 function isSuperAdmin(context) {
     return context.auth && context.auth.token.superAdmin === true;
+}
+
+/**
+ * NEW: Checks if the user is authorized as a general admin (requires 'admin: true' claim).
+ */
+function isAdmin(context) {
+    // Requires the user to be authenticated AND have the custom claim 'admin: true'
+    return context.auth && (context.auth.token.admin === true || context.auth.token.superAdmin === true);
 }
 
 // --- USER MANAGEMENT FUNCTIONS (Kept for general admin utility) ---
@@ -43,7 +61,7 @@ function isSuperAdmin(context) {
  * Callable function to fetch all users from Firebase Auth, excluding anonymous users.
  * Requires Super Admin role.
  */
-exports.getAllAuthUsers = functions.https.onCall(async (data, context) => {
+exports.getAllAuthUsers = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     if (!isSuperAdmin(context)) { 
         throw new functions.https.HttpsError('permission-denied', 'Access denied. Requires Super Admin role.');
     }
@@ -92,7 +110,7 @@ exports.getAllAuthUsers = functions.https.onCall(async (data, context) => {
  * Callable function to batch reset passwords for multiple users.
  * Requires Super Admin role.
  */
-exports.adminResetMultiPassword = functions.https.onCall(async (data, context) => {
+exports.adminResetMultiPassword = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     if (!isSuperAdmin(context)) { 
         throw new functions.https.HttpsError('permission-denied', 'Access denied. Requires Super Admin role.');
     }
@@ -161,10 +179,12 @@ async function adminResetPassword(uid, newPassword) {
 /**
  * HTTP Function endpoint for Super Admins to directly reset a user's password 
  */
-exports.adminResetPasswordByEmail = functions.https.onRequest((req, res) => {
+exports.adminResetPasswordByEmail = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         
         // !!! CRITICAL SECURITY CHECK PLACEHOLDER !!!
+        // NOTE: In a production environment, this should be protected by Firebase Authentication, 
+        // but for an HTTP endpoint outside of callable functions, we rely on a secret API key.
         const ADMIN_SECRET_KEY = functions.config().admin?.api_key;
         const providedKey = req.headers['x-admin-api-key'];
 
@@ -224,15 +244,15 @@ exports.adminResetPasswordByEmail = functions.https.onRequest((req, res) => {
 // --- TICKET CLEANUP FUNCTIONS (Spin Tickets) ---
 
 /**
- * Scheduled function to remove reserved spin tickets (rolex_tickets) older than 5 minutes.
+ * Scheduled function to remove reserved spin tickets (spin_tickets) older than 5 minutes.
  */
-exports.cleanupReservedTickets = functions.pubsub.schedule('every 5 minutes').onRun(async (context) => {
+exports.cleanupReservedTickets = functions.runWith({ runtime: 'nodejs20' }).pubsub.schedule('every 5 minutes').onRun(async (context) => {
     const db = admin.firestore();
     const fiveMinutesInMs = 5 * 60 * 1000; 
     const fiveMinutesAgo = new Date(Date.now() - fiveMinutesInMs); 
 
     try {
-        const reservedTicketsSnapshot = await db.collection('rolex_tickets')
+        const reservedTicketsSnapshot = await db.collection('spin_tickets')
             .where('status', '==', 'reserved')
             .where('timestamp', '<', fiveMinutesAgo) 
             .get();
@@ -257,11 +277,11 @@ exports.cleanupReservedTickets = functions.pubsub.schedule('every 5 minutes').on
 
 /**
  * Callable function to retrieve counts of reserved and expired tickets for the admin tool.
- * Requires Super Admin role.
+ * NOW Requires general Admin role.
  */
-exports.getReservedTicketCounts = functions.https.onCall(async (data, context) => {
-    if (!isSuperAdmin(context)) { 
-        throw new functions.https.HttpsError('permission-denied', 'Access denied. Requires Super Admin role.');
+exports.getReservedTicketCounts = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
+    if (!isAdmin(context)) { 
+        throw new functions.https.HttpsError('permission-denied', 'Access denied. Requires Admin role.');
     }
 
     const db = admin.firestore();
@@ -275,7 +295,7 @@ exports.getReservedTicketCounts = functions.https.onCall(async (data, context) =
     let expired10Min = 0;
 
     try {
-        const allReservedSnapshot = await db.collection('rolex_tickets')
+        const allReservedSnapshot = await db.collection('spin_tickets')
             .where('status', '==', 'reserved')
             .get();
 
@@ -302,26 +322,33 @@ exports.getReservedTicketCounts = functions.https.onCall(async (data, context) =
 });
 
 /**
- * Callable function to manually delete reserved tickets older than 5 minutes.
- * Requires Super Admin role.
+ * Callable function to manually delete reserved tickets older than a specified number of minutes.
+ * Defaults to 7 minutes if no argument is provided.
+ * NOW Requires general Admin role.
  */
-exports.deleteExpiredReservedTickets = functions.https.onCall(async (data, context) => {
-    if (!isSuperAdmin(context)) {
-        throw new functions.https.HttpsError('permission-denied', 'Access denied. Requires Super Admin role.');
+exports.deleteExpiredReservedTickets = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
+    if (!isAdmin(context)) {
+        throw new functions.https.HttpsError('permission-denied', 'Access denied. Requires Admin role.');
     }
 
     const db = admin.firestore();
-    const fiveMinutesInMs = 5 * 60 * 1000;
-    const fiveMinutesAgo = new Date(Date.now() - fiveMinutesInMs); 
+    // Default to 7 minutes if timeoutMinutes is not provided or invalid
+    const defaultTimeoutMinutes = 7;
+    const timeoutMinutes = data && typeof data.timeoutMinutes === 'number' && data.timeoutMinutes > 0 ? data.timeoutMinutes : defaultTimeoutMinutes;
+    
+    const timeoutInMs = timeoutMinutes * 60 * 1000;
+    const timeoutAgo = new Date(Date.now() - timeoutInMs); 
 
     try {
-        const reservedTicketsSnapshot = await db.collection('rolex_tickets')
+        // Query must use Firebase Timestamps (whichFirestore automatically handles, but checking for nulls is safer)
+        const reservedTicketsSnapshot = await db.collection('spin_tickets')
             .where('status', '==', 'reserved')
-            .where('timestamp', '<', fiveMinutesAgo) 
+            // Using FieldValue.serverTimestamp() equivalent for comparison
+            .where('timestamp', '<', admin.firestore.Timestamp.fromDate(timeoutAgo)) 
             .get();
 
         if (reservedTicketsSnapshot.empty) {
-            return { deletedCount: 0, message: 'No reserved tickets older than 5 minutes found to delete.' };
+            return { deletedCount: 0, message: `No reserved tickets older than ${timeoutMinutes} minutes found to delete.` };
         }
 
         const batch = db.batch();
@@ -331,10 +358,11 @@ exports.deleteExpiredReservedTickets = functions.https.onCall(async (data, conte
 
         await batch.commit();
         
-        return { deletedCount: reservedTicketsSnapshot.size, message: `Successfully deleted ${reservedTicketsSnapshot.size} reserved tickets older than 5 minutes.` };
+        return { deletedCount: reservedTicketsSnapshot.size, message: `Successfully deleted ${reservedTicketsSnapshot.size} reserved tickets older than ${timeoutMinutes} minutes.` };
 
     } catch (error) {
         console.error('Error during manual reserved ticket cleanup:', error);
+        // Throw a specific error code to help the client understand the generic 500 error
         throw new functions.https.HttpsError('internal', 'Failed to perform manual cleanup.', error.message);
     }
 });
@@ -343,10 +371,10 @@ exports.deleteExpiredReservedTickets = functions.https.onCall(async (data, conte
 // --- PAYMENT INTENT FUNCTIONS ---
 
 /**
- * Firebase Callable Function to create a Stripe PaymentIntent for the Spin to Win game (Rolex tickets).
+ * Firebase Callable Function to create a Stripe PaymentIntent for the Spin to Win game (spin tickets).
  * RENAMED for clarity to match single-purpose app.
  */
-exports.createSpinPaymentIntent = functions.https.onCall(async (data, context) => {
+exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     let ticketNumber;
     const SOURCE_APP_TAG = 'Magen Avraham Spin';
     // UPDATED: Total number of tickets is 350
@@ -366,8 +394,8 @@ exports.createSpinPaymentIntent = functions.https.onCall(async (data, context) =
 
         for (let i = 0; i < TOTAL_TICKETS * 2; i++) { 
             const randomTicket = Math.floor(Math.random() * TOTAL_TICKETS) + 1;
-            // Using 'rolex_tickets' as the collection name per original code
-            const ticketRef = db.collection('rolex_tickets').doc(randomTicket.toString());
+            // Using 'spin_tickets' as the collection name per original code
+            const ticketRef = db.collection('spin_tickets').doc(randomTicket.toString());
 
             try {
                 await db.runTransaction(async (transaction) => {
@@ -420,7 +448,7 @@ exports.createSpinPaymentIntent = functions.https.onCall(async (data, context) =
                 ticketsBought: '1', 
                 baseAmount: ticketNumber.toString(), 
                 ticketNumber: ticketNumber.toString(), 
-                entryType: 'rolex',
+                entryType: 'spin',
                 sourceApp: SOURCE_APP_TAG,
                 // Removed referrerRefId
             },
@@ -433,7 +461,7 @@ exports.createSpinPaymentIntent = functions.https.onCall(async (data, context) =
         if (ticketNumber) {
             try {
                 // Clean up reserved ticket if PI creation fails
-                await admin.firestore().collection('rolex_tickets').doc(ticketNumber.toString()).delete();
+                await admin.firestore().collection('spin_tickets').doc(ticketNumber.toString()).delete();
             } catch (cleanupError) {
                 console.error('Failed to clean up reserved ticket:', cleanupError);
             }
@@ -452,7 +480,7 @@ exports.createSpinPaymentIntent = functions.https.onCall(async (data, context) =
  * Firebase Callable Function to create a Stripe PaymentIntent for a general donation.
  * (Kept for the separate Donate button functionality)
  */
-exports.createDonationPaymentIntent = functions.https.onCall(async (data, context) => {
+exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     const SOURCE_APP_TAG = 'Magen Avraham Donation'; 
 
     try {
@@ -501,11 +529,13 @@ exports.createDonationPaymentIntent = functions.https.onCall(async (data, contex
 
 /**
  * Stripe Webhook Listener (HTTP Request Function).
- * Simplified to ONLY handle 'rolex' (spin) and 'donation' entry types.
+ * Simplified to ONLY handle 'spin' (spin) and 'donation' entry types.
  */
-exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(async (req, res) => {
     const sig = req.headers['stripe-signature'];
-    const webhookSecret = functions.config().stripe.webhook_secret;
+    
+    // NOTE: For sandbox testing, ensure you use the **Stripe TEST Webhook Secret** for this endpoint.
+    const webhookSecret = functions.config().stripe.webhook_secret; 
     let event;
 
     try {
@@ -527,15 +557,15 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
       try {
         const db = admin.firestore();
 
-        // --- Rolex Ticket Processing (Spin to Win) ---
-        if (entryType === 'rolex') {
+        // --- spin Ticket Processing (Spin to Win) ---
+        if (entryType === 'spin') {
             // ticketNumber is the document ID/base price in USD
-            const rolexTicketRef = db.collection('rolex_tickets').doc(ticketNumber); 
+            const spinTicketRef = db.collection('spin_tickets').doc(ticketNumber); 
             
             // The amountPaid field stores the base amount (ticketNumber in this case)
             const amountForSaleRecord = cleanAmount(ticketNumber);
             
-            await rolexTicketRef.update({
+            await spinTicketRef.update({
                 status: 'paid',
                 paymentIntentId: paymentIntent.id,
                 name,
@@ -594,7 +624,7 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
  * Callable function to create a new Super Admin account.
  * Requires an existing Super Admin role.
  */
-exports.createSuperAdmin = functions.https.onCall(async (data, context) => {
+exports.createSuperAdmin = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     if (!isSuperAdmin(context)) {
         throw new functions.https.HttpsError('permission-denied', 'Only Super Admins can create new admins.');
     }
@@ -621,7 +651,7 @@ exports.createSuperAdmin = functions.https.onCall(async (data, context) => {
 /**
  * Callable function to set a user as Super Admin.
  */
-exports.setSuperAdminClaim = functions.https.onCall(async (data, context) => {
+exports.setSuperAdminClaim = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     if (!isSuperAdmin(context)) {
         throw new functions.https.HttpsError('permission-denied', 'Access denied. Only a Super Admin can promote another user.');
     }
