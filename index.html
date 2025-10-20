@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magen Avraham Young Adult Minyan - Spin to Win Raffle</title>
+    <title>Magen Abraham Young Adult Minyan - Spin to Win Raffle</title>
 
     <!-- Metadata for SEO and Identity -->
-    <meta name="description" content="Official Spin to Win Raffle for Magen Avraham Young Adult Minyan. Win a Rolex Datejust 41 or $15,000 cash.">
-    <meta name="keywords" content="Magen Avraham, Young Adult Minyan, Raffle, Rolex, Charity, Spin to Win, Brooklyn, Synagogue">
+    <meta name="description" content="Official Spin to Win Raffle for Magen Abraham Young Adult Minyan. Win a Rolex Datejust 41 or $15,000 cash.">
+    <meta name="keywords" content="Magen Abraham, Young Adult Minyan, Raffle, Rolex, Charity, Spin to Win, Brooklyn, Synagogue">
     <meta name="author" content="Saul Setton">
     <!-- Favicon using the logo URL as a placeholder -->
     <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg">
@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Custom Tailwind Configuration for Magen Avraham Colors -->
+    <!-- Custom Tailwind Configuration for Magen Abraham Colors -->
     <script>
         tailwind.config = {
             theme: {
@@ -183,27 +183,35 @@
             background: linear-gradient(90deg, transparent, rgba(184, 154, 95, 0.65), transparent);
         }
 
+        /* FIX: Updated glow-button CSS for shimmer effect containment */
         .glow-button {
             position: relative;
             overflow: hidden;
+            z-index: 1; /* Ensure text is above shimmer */
+            isolation: isolate; /* Create new stacking context */
         }
         .glow-button::after {
             content: '';
             position: absolute;
-            inset: -150%;
-            background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+            top: 0;
+            left: -150%; /* Start off-screen left */
+            width: 50%; /* Width of the shimmer effect */
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+            transform: skewX(-20deg); /* Angle of the shimmer */
+            transition: none; /* Remove initial transition */
             opacity: 0;
-            transform: rotate(15deg);
-            transition: opacity 0.4s ease;
+            border-radius: inherit; /* FIX: Inherit parent's border-radius for clean clipping */
         }
         .glow-button:hover::after {
+            animation: shimmer 1s infinite;
             opacity: 1;
-            animation: shimmer 1.2s linear;
         }
         @keyframes shimmer {
-            0% { transform: translateX(-30%) rotate(15deg); }
-            100% { transform: translateX(30%) rotate(15deg); }
+            0% { left: -50%; }
+            100% { left: 150%; } /* End off-screen right */
         }
+        /* END FIX */
 
         /* Modal-specific styles */
         .modal-overlay {
@@ -393,8 +401,8 @@
             <div class="hidden md:flex items-center w-full justify-between space-x-8">
                 <!-- Desktop: Logo Left -->
                 <a href="#home" class="flex-shrink-0 flex items-center space-x-3 z-10">
-                    <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg" alt="Magen Avraham Young Adult Minyan Logo" class="h-14 sm:h-16 w-auto rounded-full ring-2 ring-ma-gold p-1">
-                    <span class="bebas-neue text-2xl tracking-[0.3rem] text-white hidden lg:block">MAGEN AVRAHAM</span>
+                    <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg" alt="Magen Abraham Young Adult Minyan Logo" class="h-14 sm:h-16 w-auto rounded-full ring-2 ring-ma-gold p-1">
+                    <span class="bebas-neue text-2xl tracking-[0.3rem] text-white hidden lg:block">MAGEN ABRAHAM</span>
                 </a>
                 <!-- Navigation Links -->
                 <div class="flex-1 flex justify-center">
@@ -411,19 +419,18 @@
             </div>
 
             <div class="md:hidden mobile-header-grid w-full">
-                <!-- Mobile: Grid for Logo, Title, Button (Removed) -->
                 
                 <!-- 1. Logo (Left, Wider) -->
                 <div class="mobile-logo-wrapper">
                     <a href="/" class="flex-shrink-0 flex items-center space-x-2 z-10">
                         <!-- Logo size increased on mobile -->
-                        <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg" alt="Magen Avraham Young Adult Minyan Logo" class="h-16 w-auto rounded-full ring-2 ring-ma-gold p-1">
+                        <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg" alt="Magen Abraham Young Adult Minyan Logo" class="h-16 w-auto rounded-full ring-2 ring-ma-gold p-1">
                     </a>
                 </div>
 
                 <!-- 2. Responsive Title (Center) -->
                 <h2 class="mobile-title bebas-neue text-base font-bold text-white tracking-widest px-2">
-                    MAGEN AVRAHAM YOUNG ADULT MINYAN
+                    MAGEN ABRAHAM YOUNG ADULT MINYAN
                 </h2>
 
                 <!-- 3. Buy Ticket Button -->
@@ -454,7 +461,7 @@
                         Ignite community spirit.<br class="hidden lg:block">Fuel our sanctuary with light.
                     </h1>
                     <p class="text-base sm:text-lg text-gray-300 leading-relaxed max-w-xl">
-                        Your generosity powers weekly tefillot, transformative shiurim, and uplifting programming for the next generation of the Magen Avraham family. Help us expand our impact with vibrant experiences, meaningful learning, and lasting chesed.
+                        Your generosity powers weekly tefillot, transformative shiurim, and uplifting programming for the next generation of the Magen Abraham family. Help us expand our impact with vibrant experiences, meaningful learning, and lasting chesed.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4">
                         <a href="#reasons" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-ma-gold text-ma-navy font-bold glow-button shadow-lg shadow-ma-gold/30">
@@ -481,7 +488,7 @@
                     <div class="relative glass-outline rounded-3xl p-6 sm:p-8 lg:p-12">
                         <div class="space-y-6">
                             <h2 class="bebas-neue text-4xl text-ma-gold">Our Vision</h2>
-                            <p class="text-gray-300 leading-relaxed">
+                            <p class="text-gray-300 leading-relaxed max-w-xl">
                                 We dream of a thriving hub where young professionals connect, elevate their tefillah, and invest in the future of the Sephardic community. Every contribution fuels scholarships, programming, and spiritual leadership that keeps our kehilla glowing.
                             </p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -495,7 +502,7 @@
                                 </div>
                             </div>
                             <p class="text-sm text-gray-400">
-                                Together we can elevate prayer, community, and continuity. Your support writes the next chapter of Magen Avraham.
+                                Together we can elevate prayer, community, and continuity. Your support writes the next chapter of Magen Abraham.
                             </p>
                         </div>
                     </div>
@@ -545,7 +552,7 @@
                     <div class="space-y-6">
                         <h2 class="bebas-neue text-5xl text-white">Experience the Glow</h2>
                         <p class="text-gray-300 text-lg leading-relaxed">
-                            The Magen Avraham Young Adult Minyan is more than a minyan—it’s a movement. We curate experiences that blend tradition with energy, from soulful Selichot nights to artfully designed community dinners.
+                            The Magen Abraham Young Adult Minyan is more than a minyan—it’s a movement. We curate experiences that blend tradition with energy, from soulful Selichot nights to artfully designed community dinners.
                         </p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div class="rounded-2xl bg-white/5 border border-white/10 p-5">
@@ -659,7 +666,7 @@
                             <input type="tel" id="spin-phone" name="phone" placeholder="Phone Number" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold transition-all duration-300" required>
                         </div>
                         
-                        <button id="spin-proceed-to-payment" class="w-full py-3 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 relative overflow-hidden">
+                        <button id="spin-proceed-to-payment" class="w-full py-3 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 relative overflow-hidden glow-button">
                             <span class="button-text">Proceed to Payment</span>
                             <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
                         </button>
@@ -669,7 +676,7 @@
                     <div id="spin-stripe-payment-element" class="hidden">
                            <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Payment Details</h2>
                         <div id="spin-payment-element-container"></div>
-                        <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden">
+                        <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden glow-button">
                             <span class="button-text">Pay Now</span>
                             <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
                         </button>
@@ -725,7 +732,7 @@
     <footer class="bg-black/40 py-6 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
         <div class="container mx-auto px-4 text-center">
             <p class="text-sm text-gray-500 mb-1">
-                &copy; 2026 Magen Avraham Young Adult Minyan. All Rights Reserved.
+                &copy; 2026 Magen Abraham Young Adult Minyan. All Rights Reserved.
             </p>
             <p class="text-sm text-gray-500">
                 Website created by 
@@ -832,7 +839,7 @@
             // Stripe Test Public Key added here
             const stripe = Stripe('pk_test_51RZEPeCMmspEQNuYXLdVBGpSSPewOBaH5d4eSIwrSDBeEsW9pBh7WAyDwFn8IzNyrYIY2SuV3pDXiNTmvJnr7YpC00JPzJh1lP'); 
 
-            // Using the Firebase Config provided by the user for the Magen Avraham Young Adult Minyan project
+            // Using the Firebase Config provided by the user for the Magen Abraham Young Adult Minyan project
             const firebaseConfig = {
                 apiKey: "AIzaSyDttfWf8sMAwAMZlCVfrU7-Jkc3QoCC6zM",
                 authDomain: "magenavrahamyoungadultminyan.firebaseapp.com",
@@ -956,8 +963,6 @@
 
             // --- Event Listeners ---
             popupCloseButton.addEventListener('click', hideCustomPopup);
-            
-            // NOTE: Mobile menu functionality is removed/handled by CSS changes
             
             // Initialize the scoreboard
             initializeScoreboard();

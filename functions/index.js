@@ -376,7 +376,7 @@ exports.deleteExpiredReservedTickets = functions.runWith({ runtime: 'nodejs20' }
  */
 exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     let ticketNumber;
-    const SOURCE_APP_TAG = 'Magen Avraham Spin';
+    const SOURCE_APP_TAG = 'Magen Abraham Spin';
     // UPDATED: Total number of tickets is 350
     const TOTAL_TICKETS = 350;
     
@@ -481,7 +481,7 @@ exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).htt
  * (Kept for the separate Donate button functionality)
  */
 exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
-    const SOURCE_APP_TAG = 'Magen Avraham Donation'; 
+    const SOURCE_APP_TAG = 'Magen Abraham Donation'; 
 
     try {
         const { amount, name, email, phone } = data; // Removed 'referral'
@@ -574,7 +574,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
                 phoneNumber: phone, 
                 amountPaid: amountForSaleRecord, // Store fee-excluded base amount
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Magen Avraham Spin (Webhook)',
+                sourceApp: sourceApp || 'Magen Abraham Spin (Webhook)',
             });
 
             // Update the temporary PI status doc (if it existed) to prevent reprocessing
@@ -596,7 +596,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
                 baseDonationAmount: donationBaseAmount, // Store the intended donation amount
                 webhookProcessed: true,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Magen Avraham Donation (Webhook)' 
+                sourceApp: sourceApp || 'Magen Abraham Donation (Webhook)' 
             });
         }
         
