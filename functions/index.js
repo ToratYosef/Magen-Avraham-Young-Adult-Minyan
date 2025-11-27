@@ -18,9 +18,9 @@ if (!stripeSecretKey) {
 
 const stripe = require('stripe')(stripeSecretKey);
 
-// Updated CORS origins for sandbox and local testing
+// CORS handler for HTTP endpoints only (callable functions handle CORS automatically)
 const corsHandler = cors({
-    origin: true, // Allow all origins for callable functions
+    origin: true,
 });
 
 // --- Utility Functions ---
