@@ -1,6 +1,7 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors'); 
+require('dotenv').config();
 
 // IMPORTANT: Initialize the Firebase Admin SDK
 admin.initializeApp();
