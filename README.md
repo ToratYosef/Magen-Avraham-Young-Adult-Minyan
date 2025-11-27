@@ -1,2 +1,2 @@
-# Magen-Avraham-Young-Adult-Minyan
+# Mi Keamcha Yisrael Raffle
 Hello
