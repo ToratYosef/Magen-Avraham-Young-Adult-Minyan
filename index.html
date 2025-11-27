@@ -12,29 +12,11 @@
     <!-- Favicon using the updated local logo -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/tailwind.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Custom Tailwind Configuration for Mi Keamcha Yisrael Colors -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        // Logo Colors
-                        'ma-navy': '#1B325F',
-                        'ma-gold': '#B89A5F',
-                        // Darker shade for gradient start
-                        'ma-dark': '#101D38', 
-                        // Complementary dark for inner panels/cards
-                        'ma-slate': '#2B3141', 
-                    }
-                }
-            }
-        }
-    </script>
     
     <style>
         html {
@@ -654,7 +636,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
 
     <script>
@@ -740,6 +721,7 @@
             // --- Global State (UPDATED: 500 tickets) ---
             const TOTAL_SPIN_TICKETS = 500;
             const SPIN_DURATION = 3000; // Updated to 3 seconds (3000ms)
+            const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
             let elements;
             let spinTicketNumber = 0;
             let flashInterval;
@@ -760,7 +742,6 @@
             firebase.initializeApp(firebaseConfig);
             const db = firebase.firestore();
             const auth = firebase.auth();
-            const functions = firebase.functions();
 
             // --- Helper Functions ---
             function showCustomPopup(title, message) {
@@ -885,22 +866,28 @@
                 showGlobalLoadingOverlay("Preparing your ticket...", true);
                 
                 try {
-                    // Use the newly renamed function for clarity
-                    const createSpinPaymentIntentCallable = functions.httpsCallable('createSpinPaymentIntent');
-                    
-                    // Request data without referral ID
                     const requestData = {
                         name: spinNameInput.value.trim(),
                         email: spinEmailInput.value.trim(),
                         phone: spinPhoneInput.value.trim(),
                     };
 
-                    const { data } = await createSpinPaymentIntentCallable(requestData);
-                    
-                    spinTicketNumber = data.ticketNumber;
-                    
+                    const response = await fetch(`${functionsBaseUrl}/createSpinPaymentIntentHttp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    const payload = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'Could not create a payment intent.');
+                    }
+
+                    spinTicketNumber = payload.ticketNumber;
+
                     // Stripe elements initialization
-                    elements = stripe.elements({ clientSecret: data.clientSecret, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' }] });
+                    elements = stripe.elements({ clientSecret: payload.clientSecret, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' }] });
                     const paymentElement = elements.create('payment');
                     paymentElement.mount(spinPaymentElementContainer);
                     

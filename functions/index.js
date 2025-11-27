@@ -366,108 +366,142 @@ exports.deleteExpiredReservedTickets = functions.runWith({ runtime: 'nodejs20' }
 
 // --- PAYMENT INTENT FUNCTIONS ---
 
-/**
- * Firebase Callable Function to create a Stripe PaymentIntent for the Spin to Win game (spin tickets).
- * RENAMED for clarity to match single-purpose app.
- */
-exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
+const ALLOWED_PAYMENT_ORIGINS = [
+    'https://mi-keamcha-yisrael.web.app',
+    'http://localhost:5000'
+];
+
+async function createSpinPaymentIntentCore(data) {
     let ticketNumber;
     const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
-    // UPDATED: Total number of tickets is 500
     const TOTAL_TICKETS = 500;
-    
-    try {
-        // Removed 'referral' from destructuring
-        const { name, email, phone } = data;
-        const firstName = name.split(' ')[0] || name; 
 
-        if (!name || !email || !phone) {
-            throw new functions.https.HttpsError('invalid-argument', 'Missing required fields: name, email, or phone.');
-        }
+    const { name, email, phone } = data || {};
+    const firstName = (name || '').split(' ')[0] || name;
 
-        const db = admin.firestore();
-        let foundUniqueTicket = false;
+    if (!name || !email || !phone) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required fields: name, email, or phone.');
+    }
 
-        for (let i = 0; i < TOTAL_TICKETS * 2; i++) { 
-            const randomTicket = Math.floor(Math.random() * TOTAL_TICKETS) + 1;
-            // Using 'spin_tickets' as the collection name per original code
-            const ticketRef = db.collection('spin_tickets').doc(randomTicket.toString());
+    const db = admin.firestore();
+    let foundUniqueTicket = false;
 
-            try {
-                await db.runTransaction(async (transaction) => {
-                    const docSnapshot = await transaction.get(ticketRef);
-                    // Check if ticket exists OR is reserved/paid/claimed
-                    if (!docSnapshot.exists || (docSnapshot.data().status !== 'reserved' && docSnapshot.data().status !== 'paid' && docSnapshot.data().status !== 'claimed')) {
-                        
-                        // Set initial ticket reservation data
-                        transaction.set(ticketRef, {
-                            status: 'reserved',
-                            timestamp: admin.firestore.FieldValue.serverTimestamp(), // Original creation time
-                            name: name,
-                            firstName: firstName, 
-                            email: email,
-                            phoneNumber: phone, 
-                            sourceApp: SOURCE_APP_TAG,
-                            // Removed referrerRefId
-                        }, { merge: true }); // Use merge just in case a stale document exists
+    for (let i = 0; i < TOTAL_TICKETS * 2; i++) {
+        const randomTicket = Math.floor(Math.random() * TOTAL_TICKETS) + 1;
+        const ticketRef = db.collection('spin_tickets').doc(randomTicket.toString());
 
-                        foundUniqueTicket = true;
-                    }
-                });
+        try {
+            await db.runTransaction(async (transaction) => {
+                const docSnapshot = await transaction.get(ticketRef);
+                if (!docSnapshot.exists || (docSnapshot.data().status !== 'reserved' && docSnapshot.data().status !== 'paid' && docSnapshot.data().status !== 'claimed')) {
+                    transaction.set(ticketRef, {
+                        status: 'reserved',
+                        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                        name: name,
+                        firstName: firstName,
+                        email: email,
+                        phoneNumber: phone,
+                        sourceApp: SOURCE_APP_TAG,
+                    }, { merge: true });
 
-                if (foundUniqueTicket) {
-                    ticketNumber = randomTicket;
-                    break;
+                    foundUniqueTicket = true;
                 }
-            } catch (e) {
-                // Ignore transient transaction failures and retry
-                console.error("Transaction failed during ticket reservation: ", e);
+            });
+
+            if (foundUniqueTicket) {
+                ticketNumber = randomTicket;
+                break;
             }
+        } catch (e) {
+            console.error("Transaction failed during ticket reservation: ", e);
         }
+    }
 
-        if (!foundUniqueTicket) {
-            throw new functions.https.HttpsError('resource-exhausted', 'All tickets have been claimed. Please try again later.');
-        }
+    if (!foundUniqueTicket) {
+        throw new functions.https.HttpsError('resource-exhausted', 'All tickets have been claimed. Please try again later.');
+    }
 
-        // ticketNumber (1-500) is the base price in USD. Charge the equivalent amount in cents.
-        const amountInCents = ticketNumber * 100;
+    const amountInCents = ticketNumber * 100;
 
+    try {
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amountInCents,
             currency: 'usd',
-            description: `${SOURCE_APP_TAG} - Ticket ${ticketNumber}`, 
+            description: `${SOURCE_APP_TAG} - Ticket ${ticketNumber}`,
             payment_method_types: ['card'],
             metadata: {
                 name,
                 email,
                 phone,
-                ticketsBought: '1', 
-                baseAmount: ticketNumber.toString(), 
-                ticketNumber: ticketNumber.toString(), 
+                ticketsBought: '1',
+                baseAmount: ticketNumber.toString(),
+                ticketNumber: ticketNumber.toString(),
                 entryType: 'spin',
                 sourceApp: SOURCE_APP_TAG,
-                // Removed referrerRefId
             },
         });
 
         return { clientSecret: paymentIntent.client_secret, ticketNumber };
-
     } catch (error) {
-        console.error('Error creating Stripe PaymentIntent for spin game:', error);
         if (ticketNumber) {
             try {
-                // Clean up reserved ticket if PI creation fails
                 await admin.firestore().collection('spin_tickets').doc(ticketNumber.toString()).delete();
             } catch (cleanupError) {
-                console.error('Failed to clean up reserved ticket:', cleanupError);
+                console.error('Failed to clean up reserved ticket after Stripe error:', cleanupError);
             }
         }
-        if (error.code && error.message) {
-             throw new functions.https.HttpsError(error.code, error.message);
-        } else {
-            const stripeError = error.raw && error.raw.message ? error.raw.message : 'Failed to create PaymentIntent.';
-            throw new functions.https.HttpsError('internal', stripeError);
+
+        throw error;
+    }
+}
+
+exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
+    try {
+        return await createSpinPaymentIntentCore(data);
+    } catch (error) {
+        console.error('Error creating Stripe PaymentIntent for spin game:', error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
         }
+        throw new functions.https.HttpsError('internal', 'Failed to create PaymentIntent for spin game.', error.message);
+    }
+});
+
+exports.createSpinPaymentIntentHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(async (req, res) => {
+    const origin = req.get('Origin');
+    if (origin && ALLOWED_PAYMENT_ORIGINS.includes(origin)) {
+        res.set('Access-Control-Allow-Origin', origin);
+    } else {
+        res.set('Access-Control-Allow-Origin', '*');
+    }
+    res.set('Access-Control-Allow-Methods', 'POST,OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Method not allowed' });
+    }
+
+    try {
+        const result = await createSpinPaymentIntentCore(req.body || {});
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error('Error creating Stripe PaymentIntent for spin game (HTTP):', error);
+
+        if (error instanceof functions.https.HttpsError) {
+            const statusMap = {
+                'invalid-argument': 400,
+                'resource-exhausted': 429,
+                'permission-denied': 403,
+            };
+            const statusCode = statusMap[error.code] || 500;
+            return res.status(statusCode).json({ message: error.message });
+        }
+
+        return res.status(500).json({ message: 'Failed to create PaymentIntent for spin game.' });
     }
 });
 
