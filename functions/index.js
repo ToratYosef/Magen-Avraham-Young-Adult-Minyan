@@ -20,18 +20,7 @@ const stripe = require('stripe')(stripeSecretKey);
 
 // Updated CORS origins for sandbox and local testing
 const corsHandler = cors({
-    origin: [
-        // Sandbox deployment environment (replace project-id with your testing project ID)
-        'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net',
-        // Local development URLs
-        'http://localhost:3000',
-        'http://localhost:5000',
-        'http://127.0.0.1',
-        'http://localhost:8080',
-        // Production/Testing web app URLs (use only in sandbox if necessary)
-        'https://mi-keamcha-yisrael.web.app',
-        'https://www.mi-keamcha-yisrael.web.app'
-    ],
+    origin: true, // Allow all origins for callable functions
 });
 
 // --- Utility Functions ---
