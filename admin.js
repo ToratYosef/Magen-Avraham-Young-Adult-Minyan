@@ -1,49 +1,55 @@
 const admin = require('firebase-admin');
 
-// --- SETUP: Replace with your actual credentials path ---
-// IMPORTANT: This script requires a Service Account JSON file. 
-// Download it from Firebase Console > Project Settings > Service Accounts.
+// Load Service Account Key
 const serviceAccount = require('./serviceAccountKey.json');
-
-// Replace with your project ID
-const projectId = 'mi-keamcha-yisrael'; 
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  projectId: projectId
 });
 
-/**
- * Promotes a specific user by UID to a general 'admin' role.
- * @param {string} targetUid The UID of the user to promote.
- */
-async function setAdminClaim(targetUid) {
-  if (!targetUid) {
-    console.error('Error: Please provide a user UID.');
-    return;
-  }
+// --- CONFIG ---
+const ADMIN_EMAIL = "Admin@MKY.com";
+const ADMIN_PASSWORD = "MKYadmin12!";
 
+async function createAdmin() {
   try {
-    // 1. Set the custom claim: 'admin: true'
-    await admin.auth().setCustomUserClaims(targetUid, { admin: true });
+    // 1️⃣ Create the user
+    const userRecord = await admin.auth().createUser({
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      emailVerified: true,
+      disabled: false,
+    });
 
-    // 2. Revoke existing tokens to force the user to re-authenticate and pick up new claims
-    await admin.auth().revokeRefreshTokens(targetUid);
+    console.log(`\n👤 Created admin user: ${userRecord.uid}`);
 
-    console.log(`\n✅ Success: User ${targetUid} has been granted 'admin' privileges.`);
-    console.log('The user must log out and log back in to see the changes.');
+    // 2️⃣ Assign admin privileges
+    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: true });
 
-  } catch (error) {
-    console.error('\n❌ Failed to set custom claims:', error.message);
+    // 3️⃣ Force token refresh so claim takes effect
+    await admin.auth().revokeRefreshTokens(userRecord.uid);
+
+    console.log(`\n✅ Admin user created & granted admin privileges.`);
+    console.log("➡ Email:", ADMIN_EMAIL);
+    console.log("➡ Password:", ADMIN_PASSWORD);
+    console.log("➡ UID:", userRecord.uid);
+    console.log("\nUser must log out & log back in to receive admin claim.");
+  } catch (err) {
+    // If user already exists, set claim instead of failing
+    if (err.code === "auth/email-already-exists") {
+      console.log("\n⚠ Email already exists. Fetching user...");
+      const existing = await admin.auth().getUserByEmail(ADMIN_EMAIL);
+
+      console.log("👤 Found UID:", existing.uid);
+      await admin.auth().setCustomUserClaims(existing.uid, { admin: true });
+      await admin.auth().revokeRefreshTokens(existing.uid);
+
+      console.log(`\n✅ Existing user promoted to admin.`);
+      return;
+    }
+
+    console.error("\n❌ Error:", err.message);
   }
 }
 
-// --- EXECUTION ---
-// Replace 'TARGET_USER_UID_HERE' with the actual UID of the user you want to promote.
-const targetUid = process.argv[2]; 
-
-if (!targetUid) {
-    console.log("Usage: node setAdminClaim.js [UID_OF_USER]");
-} else {
-    setAdminClaim(targetUid);
-}
+createAdmin();
