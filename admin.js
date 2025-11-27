@@ -3,10 +3,10 @@ const admin = require('firebase-admin');
 // --- SETUP: Replace with your actual credentials path ---
 // IMPORTANT: This script requires a Service Account JSON file. 
 // Download it from Firebase Console > Project Settings > Service Accounts.
-const serviceAccount = require('/workspaces/Magen-Avraham-Young-Adult-Minyan/mi-keamcha-yisrael-firebase-adminsdk.json');
+const serviceAccount = require('./serviceAccountKey.json');
 
 // Replace with your project ID
-const projectId = 'mi-keamcha-yisrael';
+const projectId = 'mi-keamcha-yisrael'; 
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
