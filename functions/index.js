@@ -6,24 +6,30 @@ const cors = require('cors');
 admin.initializeApp();
 
 // --- STRIPE INITIALIZATION ---
-// NOTE: For this sandbox environment, ensure you deploy this function to a separate Firebase 
-// project and set the 'stripe.secret_key' environment variable using your 
-// **Stripe TEST Secret Key** (sk_test_...).
-const stripe = require('stripe')(functions.config().stripe.secret_key);
+// NOTE: For this sandbox environment, ensure you deploy this function to a separate Firebase
+// project and set the STRIPE_SECRET_KEY environment variable (or functions config `stripe.secret_key`)
+// using your **Stripe TEST Secret Key** (sk_test_...).
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || (functions.config().stripe && functions.config().stripe.secret_key);
+
+if (!stripeSecretKey) {
+    throw new Error('Missing Stripe secret key. Set STRIPE_SECRET_KEY env var or functions config stripe.secret_key.');
+}
+
+const stripe = require('stripe')(stripeSecretKey);
 
 // Updated CORS origins for sandbox and local testing
 const corsHandler = cors({
     origin: [
         // Sandbox deployment environment (replace project-id with your testing project ID)
-        'https://us-central1-magenavrahamyoungadultminyan.cloudfunctions.net',
+        'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net',
         // Local development URLs
         'http://localhost:3000',
         'http://localhost:5000',
         'http://127.0.0.1',
         'http://localhost:8080',
         // Production/Testing web app URLs (use only in sandbox if necessary)
-        'https://magenavrahamyoungadultminyan.web.app',
-        'https://www.magenavrahamyoungadultminyan.web.app'
+        'https://mi-keamcha-yisrael.web.app',
+        'https://www.mi-keamcha-yisrael.web.app'
     ],
 });
 
@@ -376,9 +382,9 @@ exports.deleteExpiredReservedTickets = functions.runWith({ runtime: 'nodejs20' }
  */
 exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     let ticketNumber;
-    const SOURCE_APP_TAG = 'Magen Abraham Spin';
-    // UPDATED: Total number of tickets is 350
-    const TOTAL_TICKETS = 350;
+    const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
+    // UPDATED: Total number of tickets is 500
+    const TOTAL_TICKETS = 500;
     
     try {
         // Removed 'referral' from destructuring
@@ -433,7 +439,7 @@ exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).htt
             throw new functions.https.HttpsError('resource-exhausted', 'All tickets have been claimed. Please try again later.');
         }
 
-        // ticketNumber (1-350) is the base price in USD. Charge the equivalent amount in cents.
+        // ticketNumber (1-500) is the base price in USD. Charge the equivalent amount in cents.
         const amountInCents = ticketNumber * 100;
 
         const paymentIntent = await stripe.paymentIntents.create({
@@ -481,7 +487,7 @@ exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).htt
  * (Kept for the separate Donate button functionality)
  */
 exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
-    const SOURCE_APP_TAG = 'Magen Abraham Donation'; 
+    const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Donation';
 
     try {
         const { amount, name, email, phone } = data; // Removed 'referral'
@@ -574,7 +580,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
                 phoneNumber: phone, 
                 amountPaid: amountForSaleRecord, // Store fee-excluded base amount
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Magen Abraham Spin (Webhook)',
+                sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
             });
 
             // Update the temporary PI status doc (if it existed) to prevent reprocessing
@@ -596,7 +602,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
                 baseDonationAmount: donationBaseAmount, // Store the intended donation amount
                 webhookProcessed: true,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Magen Abraham Donation (Webhook)' 
+                sourceApp: sourceApp || 'Mi Keamcha Yisrael Donation (Webhook)'
             });
         }
         

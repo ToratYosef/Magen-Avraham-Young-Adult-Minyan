@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magen Abraham Admin Dashboard</title>
-    <meta name="description" content="Official Spin to Win Raffle for Magen Abraham Young Adult Minyan. Win a Rolex Datejust 41 or $15,000 cash.">
-    <meta name="keywords" content="Magen Abraham, Young Adult Minyan, Raffle, Rolex, Charity, Spin to Win, Brooklyn, Synagogue">
+    <title>Mi Keamcha Yisrael Admin Dashboard</title>
+    <meta name="description" content="Official Spin to Win Raffle for Mi Keamcha Yisrael. Manage entries and support the community.">
+    <meta name="keywords" content="Mi Keamcha Yisrael, Raffle, Rolex, Charity, Spin to Win, Brooklyn, Community">
     <meta name="author" content="Saul Setton">
-    <!-- Favicon using the logo URL as a placeholder -->
-    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.jpeg">
+    <!-- Favicon using the updated local logo -->
+    <link rel="icon" type="image/png" href="/assets/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Custom Tailwind Configuration for Magen Abraham Colors -->
+    <!-- Custom Tailwind Configuration for Mi Keamcha Yisrael Colors -->
     <script>
         tailwind.config = {
             theme: {
@@ -123,7 +123,7 @@
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                 <!-- Tickets Sold -->
                 <div class="bg-ma-slate/70 p-4 rounded-lg">
-                    <p class="bebas-neue text-2xl text-ma-gold" id="total-tickets-display">0/350</p>
+                    <p class="bebas-neue text-2xl text-ma-gold" id="total-tickets-display">0/500</p>
                     <p class="text-sm text-gray-400">Tickets Sold</p>
                 </div>
                 <!-- Total Revenue -->
@@ -173,7 +173,7 @@
     <footer class="bg-black/40 py-6 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
         <div class="container mx-auto px-4 text-center">
             <p class="text-sm text-gray-500 mb-1">
-                &copy; 2026 Magen Abraham Young Adult Minyan. All Rights Reserved.
+                &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.
             </p>
             <p class="text-sm text-gray-500">
                 Website created by 
@@ -193,16 +193,16 @@
 
     <script>
         // --- Configuration ---
-        const TOTAL_TICKETS = 350;
-        
-        // IMPORTANT: Use the actual Firebase Config for your Magen Abraham project
+        const TOTAL_TICKETS = 500;
+
+        // IMPORTANT: Use the actual Firebase Config for your Mi Keamcha Yisrael project
         const firebaseConfig = {
-            apiKey: "AIzaSyDttfWf8sMAwAMZlCVfrU7-Jkc3QoCC6zM",
-            authDomain: "magenavrahamyoungadultminyan.firebaseapp.com",
-            projectId: "magenavrahamyoungadultminyan",
-            storageBucket: "magenavrahamyoungadultminyan.firebasestorage.app",
-            messagingSenderId: "487030053885",
-            appId: "1:487030053885:web:dc0c1a543d95b0c2e89794"
+            apiKey: "AIzaSyApFDhSZhG46VrfgrR7l-PnZNF_b1k3xlY",
+            authDomain: "mi-keamcha-yisrael.firebaseapp.com",
+            projectId: "mi-keamcha-yisrael",
+            storageBucket: "mi-keamcha-yisrael.firebasestorage.app",
+            messagingSenderId: "918243863180",
+            appId: "1:918243863180:web:c16c95d1e67f0a8d22e9a9"
         };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
@@ -444,7 +444,7 @@
             XLSX.utils.book_append_sheet(wb, ws, "Paid Tickets");
             
             const dateStr = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `Magen_Avraham_Paid_Tickets_${dateStr}.xlsx`);
+            XLSX.writeFile(wb, `Mi_Keamcha_Yisrael_Paid_Tickets_${dateStr}.xlsx`);
         });
 
         // --- Firebase Listener ---
