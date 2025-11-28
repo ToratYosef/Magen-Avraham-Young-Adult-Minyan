@@ -9,11 +9,29 @@
     <meta name="author" content="Saul Setton">
     <!-- Favicon using the updated local logo -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
-    <link rel="stylesheet" href="/assets/tailwind.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
+    <!-- Custom Tailwind Configuration for Mi Keamcha Yisrael Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Logo Colors
+                        'ma-navy': '#1B325F',
+                        'ma-gold': '#B89A5F',
+                        // Darker shade for gradient start
+                        'ma-dark': '#101D38', 
+                        // Complementary dark for inner panels/cards
+                        'ma-slate': '#2B3141', 
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -123,9 +141,14 @@
                     <button id="cleanup-button" class="w-full py-2 px-4 rounded-full bg-red-600 text-white font-bold hover:bg-red-700 transition-colors duration-300 text-sm sm:text-base">
                         Remove Reserved (> 7 min)
                     </button>
-                    <!-- NEW EXPORT BUTTON -->
                     <button id="export-button" class="w-full py-2 px-4 rounded-full bg-green-600 text-white font-bold hover:bg-green-700 transition-colors duration-300 text-sm sm:text-base">
-                        Export Paid (.xlsx)
+                        Export Paid (.csv)
+                    </button>
+                    <button id="build-wheel-button" class="w-full py-2 px-4 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors duration-300 text-sm sm:text-base">
+                        Build Wheel
+                    </button>
+                    <button id="manual-spin-button" class="w-full py-2 px-4 rounded-full bg-purple-600 text-white font-bold hover:bg-purple-700 transition-colors duration-300 text-sm sm:text-base">
+                        Manual Spin
                     </button>
                 </div>
             </div>
@@ -172,6 +195,63 @@
     
     <!-- SheetJS (xlsx) Library for Exporting Excel Files -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Wheel Modal -->
+    <div id="wheelModal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[150] p-4 hidden">
+        <div class="bg-ma-slate p-8 rounded-lg shadow-2xl w-full max-w-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="bebas-neue text-3xl text-ma-gold">Spin The Wheel!</h2>
+                <button onclick="document.getElementById('wheelModal').classList.add('hidden')" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <canvas id="wheelCanvas" width="400" height="400" class="mx-auto mb-6 border-4 border-ma-gold rounded-full"></canvas>
+            <button id="spinWheelButton" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">
+                SPIN THE WHEEL!
+            </button>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[150] p-4 hidden">
+        <div class="bg-ma-slate p-8 rounded-lg shadow-2xl w-full max-w-md text-center">
+            <h2 class="bebas-neue text-4xl text-ma-gold mb-6">🎉 WINNER! 🎉</h2>
+            <div class="bg-ma-navy/50 p-6 rounded-lg mb-6 space-y-3">
+                <p class="text-gray-300">
+                    <span class="font-bold text-ma-gold">Name:</span>
+                    <span id="winner-name" class="text-white"></span>
+                </p>
+                <p class="text-gray-300">
+                    <span class="font-bold text-ma-gold">Ticket #:</span>
+                    <span id="winner-ticket" class="text-white"></span>
+                </p>
+                <p class="text-gray-300">
+                    <span class="font-bold text-ma-gold">Phone:</span>
+                    <span id="winner-phone" class="text-white"></span>
+                </p>
+            </div>
+            <button onclick="document.getElementById('winnerModal').classList.add('hidden')" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Manual Spin Modal -->
+    <div id="manualSpinModal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[150] p-4 hidden">
+        <div class="bg-ma-slate p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="bebas-neue text-2xl text-ma-gold">Manual Cash Payment</h2>
+                <button onclick="document.getElementById('manualSpinModal').classList.add('hidden')" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="manual-name" placeholder="Full Name" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
+                <input type="email" id="manual-email" placeholder="Email" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
+                <input type="tel" id="manual-phone" placeholder="Phone" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
+                <input type="number" id="manual-amount" placeholder="Amount ($1-$500)" min="1" max="500" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
+                <button id="submitManualSpinButton" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">
+                    Add to Wheel & Spin
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- Configuration ---
@@ -371,29 +451,44 @@
             cleanupButton.textContent = "Processing...";
             
             try {
-                // Ensure the functions object is available
-                if (!window.firebase.functions) {
-                    alert('Cloud Functions not initialized. Please check console for Firebase script errors.');
+                // Get the current user's ID token
+                const user = auth.currentUser;
+                if (!user) {
+                    alert('Not authenticated. Please sign in again.');
                     return;
                 }
-                const deleteCallable = functions.httpsCallable('deleteExpiredReservedTickets');
-                
-                // Calls the Cloud Function, which defaults to 7 minutes
-                const { data } = await deleteCallable({});
-                
+
+                const idToken = await user.getIdToken();
+                const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
+
+                const response = await fetch(`${functionsBaseUrl}/deleteExpiredReservedTicketsHttp`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ timeoutMinutes: 7 })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Cleanup failed');
+                }
+
                 alert(`Cleanup Complete: ${data.message}`);
             } catch (error) {
                 console.error("Cleanup failed:", error);
-                // Display the specific error message provided by the Cloud Function (if available)
-                const errorMessage = error.details?.message || error.message || 'An unknown error occurred during cleanup.';
-                alert(`Cleanup Failed: ${errorMessage}`);
+                alert(`Cleanup Failed: ${error.message}`);
             } finally {
                 cleanupButton.disabled = false;
                 cleanupButton.textContent = "Remove Reserved (> 7 min)";
+                // Refresh the ticket data after cleanup
+                setupFirestoreListener();
             }
         });
 
-        // --- Export to XLSX Logic ---
+        // --- Export to CSV Logic ---
         exportButton.addEventListener('click', () => {
             if (tickets.length === 0) {
                 alert("No ticket data available to export.");
@@ -408,25 +503,234 @@
                  return;
             }
 
-            // 2. Map data to the desired spreadsheet format
-            const exportData = paidData.map(t => ({
-                'Ticket #': t.id,
-                'Status': t.status.toUpperCase(),
-                'Name': t.name || 'N/A',
-                'Email': t.email || 'N/A',
-                'Phone': t.phoneNumber || 'N/A',
-                'Amount Paid (USD)': parseFloat(t.amountPaid || t.baseAmount || 0).toFixed(2),
-                'Purchase Timestamp': formatTimestamp(t.timestamp),
-                'Payment Intent ID': t.paymentIntentId || 'N/A',
-            }));
+            // 2. Create CSV header
+            let csv = 'Ticket #,Status,Name,Email,Phone,Amount Paid (USD),Purchase Timestamp,Payment Intent ID\n';
 
-            // 3. Create and download the workbook using SheetJS
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Paid Tickets");
-            
+            // 3. Add rows
+            paidData.forEach(t => {
+                const escapeCSV = (field) => {
+                    if (!field) return '';
+                    const str = String(field);
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        return `"${str.replace(/"/g, '""')}"`;
+                    }
+                    return str;
+                };
+
+                csv += [
+                    t.id,
+                    t.status.toUpperCase(),
+                    escapeCSV(t.name || 'N/A'),
+                    escapeCSV(t.email || 'N/A'),
+                    escapeCSV(t.phoneNumber || 'N/A'),
+                    parseFloat(t.amountPaid || t.baseAmount || 0).toFixed(2),
+                    escapeCSV(formatTimestamp(t.timestamp)),
+                    escapeCSV(t.paymentIntentId || 'N/A')
+                ].map(escapeCSV).join(',') + '\n';
+            });
+
+            // 4. Download CSV
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
             const dateStr = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `Mi_Keamcha_Yisrael_Paid_Tickets_${dateStr}.xlsx`);
+            link.setAttribute('href', URL.createObjectURL(blob));
+            link.setAttribute('download', `Mi_Keamcha_Yisrael_Paid_Tickets_${dateStr}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // --- Wheel Drawing Function ---
+        let wheelData = [];
+        let isSpinning = false;
+
+        function drawWheel(canvas, currentRotation = 0) {
+            if (wheelData.length === 0) return;
+
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 10;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const sliceAngle = (Math.PI * 2) / wheelData.length;
+            const colors = ['#FFD700', '#FFA500', '#FF6347', '#32CD32', '#1E90FF', '#9370DB', '#FF1493', '#00CED1'];
+
+            wheelData.forEach((item, index) => {
+                const startAngle = index * sliceAngle + currentRotation;
+                const endAngle = startAngle + sliceAngle;
+
+                // Draw slice
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[index % colors.length];
+                ctx.fill();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw text
+                const textAngle = startAngle + sliceAngle / 2;
+                const textX = centerX + Math.cos(textAngle) * (radius * 0.7);
+                const textY = centerY + Math.sin(textAngle) * (radius * 0.7);
+
+                ctx.save();
+                ctx.translate(textX, textY);
+                ctx.rotate(textAngle + Math.PI / 2);
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(item.name.substring(0, 10), 0, 0);
+                ctx.restore();
+            });
+
+            // Draw center circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
+            ctx.fillStyle = '#B89A5F';
+            ctx.fill();
+
+            // Draw pointer at top
+            ctx.beginPath();
+            ctx.moveTo(centerX - 10, 10);
+            ctx.lineTo(centerX + 10, 10);
+            ctx.lineTo(centerX, 25);
+            ctx.closePath();
+            ctx.fillStyle = '#B89A5F';
+            ctx.fill();
+        }
+
+        // --- Build Wheel Button ---
+        document.getElementById('build-wheel-button').addEventListener('click', () => {
+            const paidTickets = tickets.filter(t => t.status === 'paid' || t.status === 'claimed');
+            
+            if (paidTickets.length === 0) {
+                alert('No paid tickets available to build wheel.');
+                return;
+            }
+
+            wheelData = paidTickets;
+            const canvas = document.getElementById('wheelCanvas');
+            drawWheel(canvas);
+            document.getElementById('wheelModal').classList.remove('hidden');
+            isSpinning = false;
+        });
+
+        // --- Manual Spin Button ---
+        document.getElementById('manual-spin-button').addEventListener('click', () => {
+            document.getElementById('manualSpinModal').classList.remove('hidden');
+        });
+
+        // --- Submit Manual Spin ---
+        document.getElementById('submitManualSpinButton').addEventListener('click', async () => {
+            const name = document.getElementById('manual-name').value.trim();
+            const email = document.getElementById('manual-email').value.trim();
+            const phone = document.getElementById('manual-phone').value.trim();
+            const amount = parseInt(document.getElementById('manual-amount').value);
+
+            if (!name || !email || !phone || !amount || amount < 1 || amount > 500) {
+                alert('Please fill all fields with valid data (amount: 1-500).');
+                return;
+            }
+
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    alert('Not authenticated. Please sign in again.');
+                    return;
+                }
+
+                const idToken = await user.getIdToken();
+                const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
+
+                const response = await fetch(`${functionsBaseUrl}/addManualTicketHttp`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ name, email, phone, amount })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to add manual ticket');
+                }
+
+                // Close modal and refresh data
+                document.getElementById('manualSpinModal').classList.add('hidden');
+                document.getElementById('manual-name').value = '';
+                document.getElementById('manual-email').value = '';
+                document.getElementById('manual-phone').value = '';
+                document.getElementById('manual-amount').value = '';
+                
+                // Add to wheel and spin
+                wheelData.push({ name, email, phoneNumber: phone, id: data.ticketId });
+                const canvas = document.getElementById('wheelCanvas');
+                drawWheel(canvas);
+                document.getElementById('wheelModal').classList.remove('hidden');
+                
+                alert(`Manual ticket #${data.ticketId} created! Adding to wheel...`);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        // --- Spin Wheel ---
+        document.getElementById('spinWheelButton').addEventListener('click', async () => {
+            if (isSpinning || wheelData.length === 0) return;
+
+            isSpinning = true;
+            const canvas = document.getElementById('wheelCanvas');
+            const spinButton = document.getElementById('spinWheelButton');
+            spinButton.disabled = true;
+            spinButton.textContent = 'SPINNING...';
+
+            // Spin animation
+            const duration = 4000; // 4 seconds
+            const rotations = Math.random() * 10 + 5; // 5-15 rotations
+            const startTime = Date.now();
+            const targetRotation = (rotations * Math.PI * 2) + (Math.random() * Math.PI * 2);
+
+            const spin = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease-out cubic
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                const currentRotation = targetRotation * easeProgress;
+
+                drawWheel(canvas, currentRotation);
+
+                if (progress < 1) {
+                    requestAnimationFrame(spin);
+                } else {
+                    // Determine winner
+                    const sliceAngle = (Math.PI * 2) / wheelData.length;
+                    const normalizedRotation = (targetRotation % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                    const topSlice = (Math.PI * 2 - (normalizedRotation + Math.PI * 2 / 2)) % (Math.PI * 2);
+                    const winnerIndex = Math.floor(topSlice / sliceAngle) % wheelData.length;
+                    
+                    const winner = wheelData[winnerIndex];
+                    document.getElementById('winner-name').textContent = winner.name;
+                    document.getElementById('winner-ticket').textContent = winner.id;
+                    document.getElementById('winner-phone').textContent = winner.phoneNumber || 'N/A';
+
+                    document.getElementById('wheelModal').classList.add('hidden');
+                    document.getElementById('winnerModal').classList.remove('hidden');
+
+                    isSpinning = false;
+                    spinButton.disabled = false;
+                    spinButton.textContent = 'SPIN THE WHEEL!';
+                }
+            };
+
+            requestAnimationFrame(spin);
         });
 
         // --- Firebase Listener ---

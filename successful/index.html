@@ -9,11 +9,28 @@
     <meta name="author" content="Saul Setton">
     <!-- Favicon using the updated local logo --><link rel="icon" type="image/png" href="/assets/logo.png">
 
-    <link rel="stylesheet" href="/assets/tailwind.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
+    <!-- Custom Tailwind Configuration for Mi Keamcha Yisrael Colors --><script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Logo Colors
+                        'ma-navy': '#1B325F',
+                        'ma-gold': '#B89A5F',
+                        // Darker shade for gradient start
+                        'ma-dark': '#101D38', 
+                        // Complementary dark for inner panels/cards
+                        'ma-slate': '#2B3141', 
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
         html {

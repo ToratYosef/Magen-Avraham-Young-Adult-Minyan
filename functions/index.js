@@ -16,6 +16,8 @@ if (!stripeSecretKey) {
     throw new Error('Missing Stripe secret key. Set STRIPE_SECRET_KEY env var or functions config stripe.secret_key.');
 }
 
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
 const stripe = require('stripe')(stripeSecretKey);
 
 // CORS handler for HTTP endpoints only (callable functions handle CORS automatically)
@@ -363,6 +365,74 @@ exports.deleteExpiredReservedTickets = functions.runWith({ runtime: 'nodejs20' }
     }
 });
 
+/**
+ * HTTP Endpoint version of deleteExpiredReservedTickets for admin dashboard.
+ * This bypasses callable function CORS issues by using fetch().
+ */
+exports.deleteExpiredReservedTicketsHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send({ message: 'Method Not Allowed. Use POST.' });
+        }
+
+        try {
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({ message: 'Unauthorized. Missing or invalid Bearer token.' });
+            }
+
+            const idToken = authHeader.slice(7); // Remove 'Bearer ' prefix
+
+            // Verify the Firebase ID token
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            const uid = decodedToken.uid;
+
+            // Get user's custom claims
+            const userRecord = await admin.auth().getUser(uid);
+            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
+
+            if (!isAdminUser) {
+                return res.status(403).json({ message: 'Forbidden. User does not have admin privileges.' });
+            }
+
+            const db = admin.firestore();
+            const defaultTimeoutMinutes = 7;
+            const timeoutMinutes = req.body && typeof req.body.timeoutMinutes === 'number' && req.body.timeoutMinutes > 0 ? req.body.timeoutMinutes : defaultTimeoutMinutes;
+            
+            const timeoutInMs = timeoutMinutes * 60 * 1000;
+            const timeoutAgo = new Date(Date.now() - timeoutInMs);
+
+            const reservedTicketsSnapshot = await db.collection('spin_tickets')
+                .where('status', '==', 'reserved')
+                .where('timestamp', '<', admin.firestore.Timestamp.fromDate(timeoutAgo))
+                .get();
+
+            if (reservedTicketsSnapshot.empty) {
+                return res.status(200).json({ 
+                    deletedCount: 0, 
+                    message: `No reserved tickets older than ${timeoutMinutes} minutes found to delete.` 
+                });
+            }
+
+            const batch = db.batch();
+            reservedTicketsSnapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit();
+
+            return res.status(200).json({ 
+                deletedCount: reservedTicketsSnapshot.size, 
+                message: `Successfully deleted ${reservedTicketsSnapshot.size} reserved tickets older than ${timeoutMinutes} minutes.` 
+            });
+
+        } catch (error) {
+            console.error('Error during HTTP reserved ticket cleanup:', error);
+            return res.status(500).json({ message: 'Failed to perform manual cleanup.', error: error.message });
+        }
+    });
+});
+
 
 // --- PAYMENT INTENT FUNCTIONS ---
 
@@ -565,11 +635,15 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
     const sig = req.headers['stripe-signature'];
     
     // NOTE: For sandbox testing, ensure you use the **Stripe TEST Webhook Secret** for this endpoint.
-    const webhookSecret = functions.config().stripe.webhook_secret; 
+    if (!stripeWebhookSecret) {
+        console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
+        return res.status(500).send('Webhook Error: Missing webhook secret');
+    }
+    
     let event;
 
     try {
-      event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -719,4 +793,62 @@ exports.setSuperAdminClaim = functions.runWith({ runtime: 'nodejs20' }).https.on
         console.error(`Error promoting user ${uid} to Super Admin:`, error);
         throw new functions.https.HttpsError('internal', 'Failed to update user claims.', error.message);
     }
+});
+
+/**
+ * HTTP Endpoint to add a manual cash payment ticket
+ * Admin can manually add a ticket for cash payments and immediately mark as paid
+ */
+exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send({ message: 'Method Not Allowed. Use POST.' });
+        }
+
+        try {
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({ message: 'Unauthorized. Missing or invalid Bearer token.' });
+            }
+
+            const idToken = authHeader.slice(7);
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            const userRecord = await admin.auth().getUser(decodedToken.uid);
+            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
+
+            if (!isAdminUser) {
+                return res.status(403).json({ message: 'Forbidden. User does not have admin privileges.' });
+            }
+
+            const { name, email, phone, amount } = req.body;
+
+            if (!name || !email || !phone || !amount || amount < 1 || amount > 500) {
+                return res.status(400).json({ message: 'Invalid input. Please provide name, email, phone, and amount (1-500).' });
+            }
+
+            const db = admin.firestore();
+            const ticketRef = db.collection('spin_tickets').doc();
+            
+            await ticketRef.set({
+                id: ticketRef.id,
+                name,
+                email,
+                phoneNumber: phone,
+                status: 'paid',
+                amountPaid: parseInt(amount),
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                sourceApp: 'Mi Keamcha Yisrael Admin (Manual Cash)',
+            });
+
+            return res.status(200).json({ 
+                success: true, 
+                ticketId: ticketRef.id,
+                message: `Manual ticket created successfully for ${name}.` 
+            });
+
+        } catch (error) {
+            console.error('Error adding manual ticket:', error);
+            return res.status(500).json({ message: 'Failed to add manual ticket.', error: error.message });
+        }
+    });
 });

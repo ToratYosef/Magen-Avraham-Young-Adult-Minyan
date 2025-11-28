@@ -24,7 +24,7 @@ async function createAdmin() {
     console.log(`\n👤 Created admin user: ${userRecord.uid}`);
 
     // 2️⃣ Assign admin privileges
-    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: true });
+    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: true, superAdmin: true });
 
     // 3️⃣ Force token refresh so claim takes effect
     await admin.auth().revokeRefreshTokens(userRecord.uid);
@@ -41,10 +41,10 @@ async function createAdmin() {
       const existing = await admin.auth().getUserByEmail(ADMIN_EMAIL);
 
       console.log("👤 Found UID:", existing.uid);
-      await admin.auth().setCustomUserClaims(existing.uid, { admin: true });
+      await admin.auth().setCustomUserClaims(existing.uid, { admin: true, superAdmin: true });
       await admin.auth().revokeRefreshTokens(existing.uid);
 
-      console.log(`\n✅ Existing user promoted to admin.`);
+      console.log(`\n✅ Existing user promoted to admin with full privileges.`);
       return;
     }
 
