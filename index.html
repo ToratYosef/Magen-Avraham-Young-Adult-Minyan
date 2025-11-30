@@ -23,12 +23,12 @@
                 extend: {
                     colors: {
                         // Logo Colors
-                        'ma-navy': '#1B325F',
-                        'ma-gold': '#B89A5F',
+                        'ma-navy': '#0A0E27',
+                        'ma-gold': '#C9A961',
                         // Darker shade for gradient start
-                        'ma-dark': '#101D38', 
+                        'ma-dark': '#050810', 
                         // Complementary dark for inner panels/cards
-                        'ma-slate': '#2B3141', 
+                        'ma-slate': '#0F1527', 
                     }
                 }
             }
@@ -42,9 +42,9 @@
         /* --- General & Global Styles (Merged) --- */
         body {
             font-family: 'Inter', sans-serif;
-            /* Applying new Navy/Dark Blue gradient */
-            background-color: #101D38;
-            background-image: linear-gradient(135deg, #101D38 0%, #1B325F 100%);
+            /* Applying new Black gradient with gold accents */
+            background-color: #050810;
+            background-image: linear-gradient(135deg, #050810 0%, #0A0E27 100%);
             overflow-x: hidden;
         }
         .bebas-neue {
@@ -74,30 +74,25 @@
 
         /* --- Custom Glow Class for Prize Card --- */
         .gold-white-glow {
-            /* Primary gold border */
-            border: 4px solid #B89A5F;
-            /* Custom multi-color shadow for the glow effect */
+            /* Subtle goldish border */
+            border: 2px solid rgba(201, 169, 97, 0.5);
+            /* Subtle glow effect */
             box-shadow: 
-                0 0 15px rgba(255, 255, 255, 0.4),  /* Bright white inner glow */
-                0 0 30px rgba(255, 255, 255, 0.1),  /* Soft white middle glow */
-                0 0 45px 5px #B89A5F,              /* Intense gold shadow */
-                0 0 70px 15px #B89A5F80;           /* Wide gold aura */
+                0 0 12px rgba(201, 169, 97, 0.3),  /* Soft gold glow */
+                0 0 24px rgba(201, 169, 97, 0.15);  /* Medium gold shadow */
         }
 
         /* --- Spin Page Specific Styles --- */
         .glass-panel {
-            /* Using a darker slate/navy transparency */
-            background: rgba(43, 49, 63, 0.4); 
+            /* Using a darker black transparency */
+            background: rgba(15, 21, 39, 0.3); 
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            
-            /* ADDED: Gold and White Glow to the entire container */
-            border: 4px solid #B89A5F; /* Primary gold border */
+            /* Subtle gold glow - not too bright */
+            border: 2px solid rgba(201, 169, 97, 0.3);
             box-shadow: 
-                0 0 15px rgba(255, 255, 255, 0.4),  /* Bright white inner glow */
-                0 0 30px rgba(255, 255, 255, 0.1),  /* Soft white middle glow */
-                0 0 45px 5px #B89A5F,              /* Intense gold shadow */
-                0 0 70px 15px #B89A5F80;           /* Wide gold aura */
+                0 0 12px rgba(201, 169, 97, 0.2),  /* Soft gold glow */
+                inset 0 0 10px rgba(201, 169, 97, 0.08);  /* Subtle inner glow */
         }
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -170,16 +165,16 @@
         }
 
         .glass-outline {
-            background: rgba(16, 29, 56, 0.55);
-            border: 1px solid rgba(184, 154, 95, 0.25);
+            background: rgba(5, 8, 16, 0.6);
+            border: 1px solid rgba(201, 169, 97, 0.3);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
         }
 
         .section-divider {
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(184, 154, 95, 0.65), transparent);
+            background: linear-gradient(90deg, transparent, rgba(201, 169, 97, 0.6), transparent);
         }
 
         /* FIX: Updated glow-button CSS for shimmer effect containment */
@@ -193,7 +188,7 @@
             content: '';
             position: absolute;
             top: 0;
-            left: -150%; /* Start off-screen left */
+            left: -100%; /* Start off-screen left but contained */
             width: 50%; /* Width of the shimmer effect */
             height: 100%;
             background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
@@ -207,8 +202,8 @@
             opacity: 1;
         }
         @keyframes shimmer {
-            0% { left: -50%; }
-            100% { left: 150%; } /* End off-screen right */
+            0% { left: -100%; }
+            100% { left: 100%; } /* Stay within button */
         }
         /* END FIX */
 
@@ -242,13 +237,14 @@
             width: 60px;
             height: 90px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-            background-color: #1e293b; /* Maintain a dark digital background */
+            box-shadow: 0 0 15px rgba(201, 169, 97, 0.3);
+            background-color: #0A0E27; /* Maintain a dark digital background */
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            position: relative; 
+            position: relative;
+            border: 2px solid rgba(201, 169, 97, 0.25);
         }
         @media (min-width: 768px) {
             .digit-box {
@@ -258,13 +254,14 @@
         }
         
         .digit-text {
-            /* Now using the new Gold color */
-            color: #B89A5F; 
+            /* Now using the goldish color */
+            color: #C9A961; 
             font-size: 5rem;
             line-height: 1; 
             font-family: 'Bebas Neue', sans-serif;
             text-align: center;
-            transform: translateY(10%); 
+            transform: translateY(10%);
+            text-shadow: 0 0 10px rgba(201, 169, 97, 0.6);
         }
         @media (min-width: 768px) {
             .digit-text {
@@ -475,57 +472,6 @@
                     You might pay as little as $1 and win the grand prize or its cash equivalent!
                 </p>
 
-                <!-- Prize Display Section -->
-                <div class="mb-12">
-                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">Prizes</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto gap-8">
-                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
-                            data-name="1st Prize: Oyster Perpetual Datejust"
-                            data-desc="Take home an Oyster Perpetual Datejust valued at $16,500. Timeless elegance and unmatched craftsmanship."
-                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/rolex1.png"
-                            onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">1st Prize: Oyster Perpetual Datejust ($16.5K Value)</h3>
-                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/rolex1.png"
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=First+Prize'"
-                                alt="Oyster Perpetual Datejust" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
-                            <p class="text-white text-base font-semibold">A luxury timepiece worth $16,500 awaits the top winner.</p>
-                        </div>
-                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
-                            data-name="2nd Prize: Surfside Florida Getaway"
-                            data-desc="Enjoy a 4-night, 5-day vacation on Collins Ave in Surfside, Florida. Sun, sand, and relaxation."
-                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/miami.jpg"
-                            onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">2nd Prize: Surfside Florida Vacation</h3>
-                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/miami.jpg"
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Vacation'"
-                                alt="Surfside Florida Vacation" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
-                            <p class="text-white text-base font-semibold">Stay 4 nights and 5 days on Collins Ave for the perfect escape.</p>
-                        </div>
-                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
-                            data-name="3rd Prize: $2,000 Cash"
-                            data-desc="Win $2,000 in cash to spend however you like."
-                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
-                            onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">3rd Prize: $2,000 Cash</h3>
-                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Cash+Prize'"
-                                alt="$2,000 Cash" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
-                            <p class="text-white text-base font-semibold">Pocket $2,000 in cash as the third prize winner.</p>
-                        </div>
-                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
-                            data-name="4th Prize: $1,000 Cash"
-                            data-desc="Receive $1,000 in cash as the fourth prize."
-                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
-                            onclick="showPrizeModal(this)">
-                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">4th Prize: $1,000 Cash</h3>
-                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Cash+Prize'"
-                                alt="$1,000 Cash" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
-                            <p class="text-white text-base font-semibold">Pocket $1,000 in cash as the fourth prize winner.</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Live Counter (STATIC SCOREBOARD STRUCTURE) -->
                 <div class="mb-12">
                     <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">Tickets Left (1 - 500)</h2>
@@ -539,7 +485,7 @@
 
                 <!-- How it Works Section -->
                 <div class="mb-12">
-                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">How It Works </h2>
+                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">How It Works</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <div class="bg-ma-slate/60 p-6 rounded-xl shadow-lg">
                             <p class="bebas-neue text-4xl text-ma-gold mb-2">1</p>
@@ -551,7 +497,6 @@
                             <h3 class="bebas-neue text-2xl font-bold text-white mb-2">Take a Chance</h3>
                             <p class="text-gray-300">The system will assign you a random number, which is your ticket price.</p>
                         </div>
-                        <!-- Updated Step 3 -->
                         <div class="bg-ma-slate/60 p-6 rounded-xl shadow-lg">
                             <p class="bebas-neue text-4xl text-ma-gold mb-2">3</p>
                             <h3 class="bebas-neue text-2xl font-bold text-white mb-2">Win Big!</h3>
@@ -561,7 +506,7 @@
                 </div>
 
                 <!-- Payment Form Section -->
-                <div class="relative-container glass-panel p-6 rounded-2xl shadow-2xl max-w-lg mx-auto mb-12">
+                <div class="relative-container glass-panel p-6 rounded-2xl shadow-2xl max-w-lg mx-auto mb-12" style="border: 2px solid rgba(201, 169, 97, 0.5); box-shadow: 0 0 12px rgba(201, 169, 97, 0.3), 0 0 24px rgba(201, 169, 97, 0.15);">
                     <div id="initial-form" class="space-y-4" autocomplete="off" novalidate>
                         <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Enter for a Chance to Win!</h2>
                         <div>
@@ -588,6 +533,63 @@
                             <span class="button-text">Pay Now</span>
                             <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
                         </button>
+                    </div>
+                </div>
+
+                <!-- Prize Display Section -->
+                <div class="mb-12">
+                    <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-4">Prizes</h2>
+                    <!-- First Row: Rolex Prize -->
+                    <div class="mb-8">
+                        <div class="w-full">
+                            <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
+                                data-name="1st Prize: Oyster Perpetual Datejust"
+                                data-desc="Take home an Oyster Perpetual Datejust valued at $16,500. Timeless elegance and unmatched craftsmanship."
+                                data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/rolex1.png"
+                                onclick="showPrizeModal(this)">
+                                <h3 class="bebas-neue text-3xl text-ma-gold mb-4">1st Prize: Oyster Perpetual Datejust ($16.5K Value)</h3>
+                                <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/rolex1.png"
+                                    onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=First+Prize'"
+                                    alt="Oyster Perpetual Datejust" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
+                                <p class="text-white text-base font-semibold">A luxury timepiece worth $16,500 awaits the top winner.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Second Row: Other 3 Prizes -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 max-w-full mx-auto gap-8">
+                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
+                            data-name="2nd Prize: Surfside Florida Getaway"
+                            data-desc="Enjoy a 4-night, 5-day vacation on Collins Ave in Surfside, Florida. Sun, sand, and relaxation."
+                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/miami.jpg"
+                            onclick="showPrizeModal(this)">
+                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">2nd Prize: Surfside Florida Vacation</h3>
+                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/miami.jpg"
+                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Vacation'"
+                                alt="Surfside Florida Vacation" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
+                            <p class="text-white text-base font-semibold">Stay 4 nights and 5 days on Collins Ave for the perfect escape.</p>
+                        </div>
+                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
+                            data-name="3rd Prize: $2,000 Cash"
+                            data-desc="Win $2,000 in cash to spend however you like."
+                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                            onclick="showPrizeModal(this)">
+                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">3rd Prize:<br>$2,000 Cash<br></h3>
+                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Cash+Prize'"
+                                alt="$2,000 Cash" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
+                            <p class="text-white text-base font-semibold">Pocket $2,000 in cash as the third prize winner.</p>
+                        </div>
+                        <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
+                            data-name="4th Prize: $1,000 Cash"
+                            data-desc="Receive $1,000 in cash as the fourth prize."
+                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                            onclick="showPrizeModal(this)">
+                            <h3 class="bebas-neue text-3xl text-ma-gold mb-4">4th Prize:<br>$1,000 Cash<br></h3>
+                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                                onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Cash+Prize'"
+                                alt="$1,000 Cash" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
+                            <p class="text-white text-base font-semibold">Pocket $1,000 in cash as the fourth prize winner.<br><br></p>
+                        </div>
                     </div>
                 </div>
             </div>
