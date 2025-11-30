@@ -14,12 +14,25 @@ admin.initializeApp();
 //   SOLA_SOFTWARE_VERSION   -> xSoftwareVersion
 //   SOLA_VERSION            -> xVersion
 //   SOLA_ENV                -> Which environment to target (x1, x2, b1)
+function parseBoolean(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        return ['1', 'true', 'yes', 'y', 'on'].includes(normalized);
+    }
+    return false;
+}
+
+const sandboxEnabled = parseBoolean(process.env.SOLA_SANDBOX || (functions.config().sola && functions.config().sola.sandbox));
+
 const solaConfig = {
-    key: process.env.SOLA_KEY || (functions.config().sola && functions.config().sola.key),
+    key: sandboxEnabled
+        ? (process.env.SOLA_SANDBOX_KEY || (functions.config().sola && functions.config().sola.sandbox_key) || process.env.SOLA_KEY || (functions.config().sola && functions.config().sola.key))
+        : (process.env.SOLA_KEY || (functions.config().sola && functions.config().sola.key)),
     softwareName: process.env.SOLA_SOFTWARE_NAME || (functions.config().sola && functions.config().sola.software_name) || 'MA Minyan',
     softwareVersion: process.env.SOLA_SOFTWARE_VERSION || (functions.config().sola && functions.config().sola.software_version) || '1.0.0',
     version: process.env.SOLA_VERSION || (functions.config().sola && functions.config().sola.version) || '5.0.0',
-    environment: process.env.SOLA_ENV || (functions.config().sola && functions.config().sola.environment) || 'x1',
+    environment: (process.env.SOLA_ENV || (functions.config().sola && functions.config().sola.environment)) || (sandboxEnabled ? 'x2' : 'x1'),
 };
 
 if (!solaConfig.key) {
