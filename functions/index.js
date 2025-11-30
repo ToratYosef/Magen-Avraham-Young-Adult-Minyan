@@ -863,30 +863,35 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
                 return res.status(403).json({ message: 'Forbidden. User does not have admin privileges.' });
             }
 
-            const { name, email, phone, amount } = req.body;
+            const { name, email, phone } = req.body;
 
-            if (!name || !email || !phone || !amount || amount < 1 || amount > 500) {
-                return res.status(400).json({ message: 'Invalid input. Please provide name, email, phone, and amount (1-500).' });
+            if (!name || !email || !phone) {
+                return res.status(400).json({ message: 'Invalid input. Please provide name, email, and phone.' });
             }
 
+            // Reserve a valid ticket number just like a standard purchase
+            const { ticketNumber, amount } = await createSpinPaymentIntentCore({ name, email, phone });
+
             const db = admin.firestore();
-            const ticketRef = db.collection('spin_tickets').doc();
-            
+            const ticketRef = db.collection('spin_tickets').doc(ticketNumber.toString());
+
             await ticketRef.set({
-                id: ticketRef.id,
+                id: ticketNumber.toString(),
                 name,
                 email,
                 phoneNumber: phone,
                 status: 'paid',
-                amountPaid: parseInt(amount),
+                amountPaid: amount,
+                paymentMethod: 'cash',
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 sourceApp: 'Mi Keamcha Yisrael Admin (Manual Cash)',
-            });
+            }, { merge: true });
 
-            return res.status(200).json({ 
-                success: true, 
-                ticketId: ticketRef.id,
-                message: `Manual ticket created successfully for ${name}.` 
+            return res.status(200).json({
+                success: true,
+                ticketId: ticketNumber,
+                amountPaid: amount,
+                message: `Manual ticket created successfully for ${name}.`
             });
 
         } catch (error) {
