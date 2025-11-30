@@ -525,11 +525,17 @@
                         </button>
                     </div>
 
-                    <!-- Stripe payment element container -->
-                    <div id="spin-stripe-payment-element" class="hidden">
+                    <!-- Sola iFields payment element container -->
+                    <div id="spin-sola-payment-element" class="hidden">
                            <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Payment Details</h2>
-                        <div id="spin-payment-element-container"></div>
-                        <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden glow-button">
+                        <div class="space-y-3">
+                            <iframe data-ifields-id="card-number" data-ifields-placeholder="Card Number" class="w-full h-12 rounded-lg border border-ma-gold/50" src="https://cdn.cardknox.com/ifields/2.17/ifield.htm"></iframe>
+                            <iframe data-ifields-id="cvv" data-ifields-placeholder="CVV" class="w-full h-12 rounded-lg border border-ma-gold/50" src="https://cdn.cardknox.com/ifields/2.17/ifield.htm"></iframe>
+                            <input name="xCardNum" data-ifields-id="card-number-token" type="hidden" />
+                            <input name="xCVV" data-ifields-id="cvv-token" type="hidden" />
+                            <label data-ifields-id="card-data-error" class="text-red-500 text-sm"></label>
+                        </div>
+                        <button id="spin-sola-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden glow-button">
                             <span class="button-text">Pay Now</span>
                             <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
                         </button>
@@ -651,11 +657,11 @@
         </div>
     </footer>
 
-    <!-- Firebase and Stripe Scripts -->
+    <!-- Firebase and Sola iFields Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://cdn.cardknox.com/ifields/2.17/ifields.min.js"></script>
 
     <script>
         // --- Modal Functions ---
@@ -709,12 +715,13 @@
             // --- UI Elements ---
             const initialForm = document.getElementById('initial-form');
             const spinProceedToPaymentButton = document.getElementById('spin-proceed-to-payment');
-            const spinStripePayButton = document.getElementById('spin-stripe-pay-button');
+            const spinSolaPayButton = document.getElementById('spin-sola-pay-button');
             const spinNameInput = document.getElementById('spin-name');
             const spinEmailInput = document.getElementById('spin-email');
             const spinPhoneInput = document.getElementById('spin-phone');
-            const spinStripePaymentElement = document.getElementById('spin-stripe-payment-element');
-            const spinPaymentElementContainer = document.getElementById('spin-payment-element-container');
+            const spinSolaPaymentElement = document.getElementById('spin-sola-payment-element');
+            const cardTokenInput = document.querySelector('[data-ifields-id="card-number-token"]');
+            const cvvTokenInput = document.querySelector('[data-ifields-id="cvv-token"]');
             
             // Flip Clock Digit IDs (reused for static display)
             const digitHundredsId = 'digit-hundreds';
@@ -741,13 +748,11 @@
             const TOTAL_SPIN_TICKETS = 500;
             const SPIN_DURATION = 3000; // Updated to 3 seconds (3000ms)
             const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
-            let elements;
             let spinTicketNumber = 0;
             let flashInterval;
 
-            // --- Stripe & Firebase Initialization (UPDATED for SANDBOX) ---
-            // Stripe Test Public Key added here
-            const stripe = Stripe('pk_test_51RZEPeCMmspEQNuYXLdVBGpSSPewOBaH5d4eSIwrSDBeEsW9pBh7WAyDwFn8IzNyrYIY2SuV3pDXiNTmvJnr7YpC00JPzJh1lP'); 
+            // --- Sola iFields Initialization ---
+            setAccount('YOUR_IFIELDS_KEY', 'MA Minyan', '1.0.0');
 
             // Updated Firebase Config for Mi Keamcha Yisrael
             const firebaseConfig = {
@@ -905,15 +910,10 @@
 
                     spinTicketNumber = payload.ticketNumber;
 
-                    // Stripe elements initialization
-                    elements = stripe.elements({ clientSecret: payload.clientSecret, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' }] });
-                    const paymentElement = elements.create('payment');
-                    paymentElement.mount(spinPaymentElementContainer);
-                    
                     // Hide user info form, show payment element
                     initialForm.classList.add('hidden');
-                    spinStripePaymentElement.classList.remove('hidden');
-                    spinStripePayButton.classList.remove('hidden');
+                    spinSolaPaymentElement.classList.remove('hidden');
+                    spinSolaPayButton.classList.remove('hidden');
 
                     hideGlobalLoadingOverlay();
 
@@ -925,52 +925,58 @@
                 }
             });
 
-            spinStripePayButton.addEventListener('click', async (event) => {
+            spinSolaPayButton.addEventListener('click', async (event) => {
                 event.preventDefault();
 
-                // Check if the Stripe Payment Element has actually mounted successfully
-                if (!elements || !document.getElementById('spin-payment-element-container').children.length) {
-                    showCustomPopup('Payment Setup Error', 'Payment environment failed to load. Please refresh the page.');
-                    return;
-                }
+                const submitButtonSpinner = spinSolaPayButton.querySelector('.button-spinner');
+                submitButtonSpinner?.classList.remove('hidden');
 
-                // Show the modal and start the spin animation immediately
-                spinStripePaymentElement.classList.add('hidden');
-                initialForm.classList.add('hidden');
-                spinModal.classList.remove('hidden');
-                startSpinAnimation();
+                getTokens(async () => {
+                    try {
+                        const requestPayload = {
+                            ticketNumber: spinTicketNumber,
+                            name: spinNameInput.value.trim(),
+                            email: spinEmailInput.value.trim(),
+                            phone: spinPhoneInput.value.trim(),
+                            cardToken: cardTokenInput.value,
+                            cvvToken: cvvTokenInput.value,
+                        };
 
-                const PLACEHOLDER_RETURN_URL = `${window.location.origin}/spin-the-wheel-processing/`;
+                        // Show the modal and start the spin animation immediately
+                        spinSolaPaymentElement.classList.add('hidden');
+                        initialForm.classList.add('hidden');
+                        spinModal.classList.remove('hidden');
+                        startSpinAnimation();
 
-                const { error, paymentIntent } = await stripe.confirmPayment({
-                    elements,
-                    confirmParams: { 
-                        return_url: PLACEHOLDER_RETURN_URL,
-                    },
-                    redirect: 'if_required' 
-                });
+                        const chargeResponse = await fetch(`${functionsBaseUrl}/processSpinPaymentHttp`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(requestPayload)
+                        });
 
-                if (error) {
-                    clearInterval(flashInterval); // Stop spin on immediate failure
-                    showCustomPopup('Payment Failed', error.message || 'Payment could not be processed due to an error. Please check your card details and required fields.');
-                    console.error("Stripe confirmPayment error:", error);
-                    
-                    // Reset UI: Hide modal, show payment form again
-                    spinModal.classList.add('hidden');
-                    initialForm.classList.add('hidden');
-                    spinStripePaymentElement.classList.remove('hidden');
-                    spinStripePayButton.classList.remove('hidden');
+                        const chargePayload = await chargeResponse.json().catch(() => ({}));
 
-                } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-                    // Payment succeeded client-side
-                    setTimeout(() => {
-                        // Stop spin, reveal number, start 3s red blink, then redirect
-                        stopSpinAnimationAndReveal(spinTicketNumber);
-                    }, SPIN_DURATION); // Wait 3 seconds for the spin visualization
+                        if (!chargeResponse.ok) {
+                            throw new Error(chargePayload.message || 'Payment could not be processed.');
+                        }
 
-                } else {
-                    console.log("Payment requires action or is pending. Letting Stripe handle the redirect flow.");
-                }
+                        setTimeout(() => {
+                            stopSpinAnimationAndReveal(spinTicketNumber);
+                        }, SPIN_DURATION);
+                    } catch (paymentError) {
+                        clearInterval(flashInterval);
+                        showCustomPopup('Payment Failed', paymentError.message || 'Payment could not be processed.');
+                        spinModal.classList.add('hidden');
+                        initialForm.classList.add('hidden');
+                        spinSolaPaymentElement.classList.remove('hidden');
+                        spinSolaPayButton.classList.remove('hidden');
+                    } finally {
+                        submitButtonSpinner?.classList.add('hidden');
+                    }
+                }, () => {
+                    submitButtonSpinner?.classList.add('hidden');
+                    showCustomPopup('Payment Error', 'Unable to tokenize card data. Please verify your details.');
+                }, 30000);
             });
 
             // --- Firebase Initialization and Real-time Listener ---
