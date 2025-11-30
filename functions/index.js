@@ -1,29 +1,37 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
-const cors = require('cors'); 
+const cors = require('cors');
 require('dotenv').config();
 
 // IMPORTANT: Initialize the Firebase Admin SDK
 admin.initializeApp();
 
-// --- STRIPE INITIALIZATION ---
-// NOTE: For this sandbox environment, ensure you deploy this function to a separate Firebase
-// project and set the STRIPE_SECRET_KEY environment variable (or functions config `stripe.secret_key`)
-// using your **Stripe TEST Secret Key** (sk_test_...).
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || (functions.config().stripe && functions.config().stripe.secret_key);
+// --- SOLA (Cardknox) INITIALIZATION ---
+// The Sola/Cardknox credentials mirror the values described in the Transaction API docs.
+// These should be supplied via environment variables or Functions config:
+//   SOLA_KEY                -> xKey (private merchant key)
+//   SOLA_SOFTWARE_NAME      -> xSoftwareName (software identifier)
+//   SOLA_SOFTWARE_VERSION   -> xSoftwareVersion
+//   SOLA_VERSION            -> xVersion
+//   SOLA_ENV                -> Which environment to target (x1, x2, b1)
+const solaConfig = {
+    key: process.env.SOLA_KEY || (functions.config().sola && functions.config().sola.key),
+    softwareName: process.env.SOLA_SOFTWARE_NAME || (functions.config().sola && functions.config().sola.software_name) || 'MA Minyan',
+    softwareVersion: process.env.SOLA_SOFTWARE_VERSION || (functions.config().sola && functions.config().sola.software_version) || '1.0.0',
+    version: process.env.SOLA_VERSION || (functions.config().sola && functions.config().sola.version) || '5.0.0',
+    environment: process.env.SOLA_ENV || (functions.config().sola && functions.config().sola.environment) || 'x1',
+};
 
-if (!stripeSecretKey) {
-    throw new Error('Missing Stripe secret key. Set STRIPE_SECRET_KEY env var or functions config stripe.secret_key.');
+if (!solaConfig.key) {
+    throw new Error('Missing SOLA_KEY. Set SOLA_KEY env var or functions config sola.key.');
 }
-
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-const stripe = require('stripe')(stripeSecretKey);
 
 // CORS handler for HTTP endpoints only (callable functions handle CORS automatically)
 const corsHandler = cors({
     origin: true,
 });
+
+const SPIN_SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
 
 // --- Utility Functions ---
 
@@ -36,6 +44,40 @@ function cleanAmount(value) {
     const num = parseFloat(value);
     if (isNaN(num)) return 0;
     return Math.round(num * 100) / 100;
+}
+
+/**
+ * Sends a transaction request to the Sola/Cardknox gateway.
+ * @param {Object} payload Key/value pairs to send to the gateway.
+ */
+async function sendSolaTransaction(payload) {
+    const endpoint = `https://${solaConfig.environment}.cardknox.com/gatewayjson`;
+
+    const body = {
+        xKey: solaConfig.key,
+        xVersion: solaConfig.version,
+        xSoftwareName: solaConfig.softwareName,
+        xSoftwareVersion: solaConfig.softwareVersion,
+        ...payload,
+    };
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Gateway error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.xErrorCode && data.xErrorCode !== '00000') {
+        throw new Error(`Sola error ${data.xErrorCode}: ${data.xErrorMessage || 'Unknown error'}`);
+    }
+
+    return data;
 }
 
 /**
@@ -443,7 +485,7 @@ const ALLOWED_PAYMENT_ORIGINS = [
 
 async function createSpinPaymentIntentCore(data) {
     let ticketNumber;
-    const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
+    const SOURCE_APP_TAG = SPIN_SOURCE_APP_TAG;
     const TOTAL_TICKETS = 500;
 
     const { name, email, phone } = data || {};
@@ -491,49 +533,18 @@ async function createSpinPaymentIntentCore(data) {
         throw new functions.https.HttpsError('resource-exhausted', 'All tickets have been claimed. Please try again later.');
     }
 
-    const amountInCents = ticketNumber * 100;
-
-    try {
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amountInCents,
-            currency: 'usd',
-            description: `${SOURCE_APP_TAG} - Ticket ${ticketNumber}`,
-            payment_method_types: ['card'],
-            metadata: {
-                name,
-                email,
-                phone,
-                ticketsBought: '1',
-                baseAmount: ticketNumber.toString(),
-                ticketNumber: ticketNumber.toString(),
-                entryType: 'spin',
-                sourceApp: SOURCE_APP_TAG,
-            },
-        });
-
-        return { clientSecret: paymentIntent.client_secret, ticketNumber };
-    } catch (error) {
-        if (ticketNumber) {
-            try {
-                await admin.firestore().collection('spin_tickets').doc(ticketNumber.toString()).delete();
-            } catch (cleanupError) {
-                console.error('Failed to clean up reserved ticket after Stripe error:', cleanupError);
-            }
-        }
-
-        throw error;
-    }
+    return { ticketNumber, amount: cleanAmount(ticketNumber) };
 }
 
 exports.createSpinPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     try {
         return await createSpinPaymentIntentCore(data);
     } catch (error) {
-        console.error('Error creating Stripe PaymentIntent for spin game:', error);
+        console.error('Error creating Sola transaction reservation for spin game:', error);
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', 'Failed to create PaymentIntent for spin game.', error.message);
+        throw new functions.https.HttpsError('internal', 'Failed to reserve ticket for spin game.', error.message);
     }
 });
 
@@ -559,7 +570,7 @@ exports.createSpinPaymentIntentHttp = functions.runWith({ runtime: 'nodejs20' })
         const result = await createSpinPaymentIntentCore(req.body || {});
         return res.status(200).json(result);
     } catch (error) {
-        console.error('Error creating Stripe PaymentIntent for spin game (HTTP):', error);
+        console.error('Error creating Sola reservation for spin game (HTTP):', error);
 
         if (error instanceof functions.https.HttpsError) {
             const statusMap = {
@@ -571,153 +582,172 @@ exports.createSpinPaymentIntentHttp = functions.runWith({ runtime: 'nodejs20' })
             return res.status(statusCode).json({ message: error.message });
         }
 
-        return res.status(500).json({ message: 'Failed to create PaymentIntent for spin game.' });
+        return res.status(500).json({ message: 'Failed to reserve ticket for spin game.' });
+    }
+});
+
+/**
+ * Charges a reserved spin ticket using the Sola/Cardknox gateway.
+ * Expects SUT tokens (xCardNum/xCVV) from the iFields client integration.
+ */
+async function processSpinPayment(data) {
+    const { ticketNumber, name, email, phone, cardToken, cvvToken, exp } = data || {};
+
+    if (!ticketNumber || !name || !email || !phone || !cardToken) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required fields for processing the payment.');
+    }
+
+    const db = admin.firestore();
+    const ticketRef = db.collection('spin_tickets').doc(ticketNumber.toString());
+    const ticketSnapshot = await ticketRef.get();
+
+    if (!ticketSnapshot.exists) {
+        throw new functions.https.HttpsError('failed-precondition', 'Ticket reservation not found.');
+    }
+
+    const ticketData = ticketSnapshot.data();
+    if (ticketData.status === 'paid') {
+        return { status: 'already-paid' };
+    }
+
+    const amount = cleanAmount(ticketNumber);
+
+    const solaPayload = {
+        xCommand: 'cc:sale',
+        xAmount: amount.toFixed(2),
+        xCardNum: cardToken,
+        xCVV: cvvToken,
+        xExp: exp,
+        xBillFirstName: name.split(' ')[0] || name,
+        xBillLastName: name.split(' ').slice(1).join(' ') || name,
+        xEmail: email,
+        xBillPhone: phone,
+        xInvoice: `spin-${ticketNumber}`,
+        xDescription: `Spin Ticket ${ticketNumber}`,
+        xOrderID: ticketNumber.toString(),
+        xAllowDuplicate: 'true',
+    };
+
+    const gatewayResponse = await sendSolaTransaction(solaPayload);
+
+    await ticketRef.update({
+        status: 'paid',
+        paymentGateway: 'sola',
+        transactionId: gatewayResponse.xRefNum || gatewayResponse.xTransactionID,
+        name,
+        firstName: name.split(' ')[0] || name,
+        email,
+        phoneNumber: phone,
+        amountPaid: amount,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sourceApp: SPIN_SOURCE_APP_TAG,
+    });
+
+    return {
+        status: gatewayResponse.xResult || 'A',
+        ticketNumber,
+        referenceNumber: gatewayResponse.xRefNum,
+        rawResponse: gatewayResponse,
+    };
+}
+
+exports.processSpinPayment = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
+    try {
+        return await processSpinPayment(data);
+    } catch (error) {
+        console.error('Error processing Sola payment for spin game:', error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError('internal', 'Failed to process spin payment.', error.message);
+    }
+});
+
+exports.processSpinPaymentHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(async (req, res) => {
+    const origin = req.get('Origin');
+    if (origin && ALLOWED_PAYMENT_ORIGINS.includes(origin)) {
+        res.set('Access-Control-Allow-Origin', origin);
+    } else {
+        res.set('Access-Control-Allow-Origin', '*');
+    }
+    res.set('Access-Control-Allow-Methods', 'POST,OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Method not allowed' });
+    }
+
+    try {
+        const result = await processSpinPayment(req.body || {});
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error('Error processing Sola payment for spin game (HTTP):', error);
+        if (error instanceof functions.https.HttpsError) {
+            const statusMap = {
+                'invalid-argument': 400,
+                'failed-precondition': 412,
+                'permission-denied': 403,
+            };
+            const statusCode = statusMap[error.code] || 500;
+            return res.status(statusCode).json({ message: error.message });
+        }
+        return res.status(500).json({ message: 'Failed to process spin payment.' });
     }
 });
 
 
 /**
- * Firebase Callable Function to create a Stripe PaymentIntent for a general donation.
- * (Kept for the separate Donate button functionality)
+ * Firebase Callable Function to process a donation via Sola/Cardknox.
  */
-exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
+exports.processDonation = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
     const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Donation';
 
     try {
-        const { amount, name, email, phone } = data; // Removed 'referral'
+        const { amount, name, email, phone, cardToken, cvvToken, exp } = data;
         const cleanedAmount = cleanAmount(amount);
 
-        if (!cleanedAmount || !name || !email || !phone) {
-            throw new functions.https.HttpsError('invalid-argument', 'Missing required fields: amount, name, email, or phone.');
+        if (!cleanedAmount || !name || !email || !phone || !cardToken) {
+            throw new functions.https.HttpsError('invalid-argument', 'Missing required fields: amount, name, email, phone, or card token.');
         }
-        
-        const amountInCents = Math.round(cleanedAmount * 100);
 
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amountInCents,
-            currency: 'usd',
-            description: `${SOURCE_APP_TAG} Donation`, 
-            payment_method_types: ['card'],
-            metadata: {
-                name,
-                email,
-                phone,
-                amount: cleanedAmount.toString(),
-                entryType: 'donation',
-                sourceApp: SOURCE_APP_TAG,
-            },
+        const gatewayResponse = await sendSolaTransaction({
+            xCommand: 'cc:sale',
+            xAmount: cleanedAmount.toFixed(2),
+            xCardNum: cardToken,
+            xCVV: cvvToken,
+            xExp: exp,
+            xBillFirstName: name.split(' ')[0] || name,
+            xBillLastName: name.split(' ').slice(1).join(' ') || name,
+            xEmail: email,
+            xBillPhone: phone,
+            xDescription: `${SOURCE_APP_TAG} Donation`,
+            xAllowDuplicate: 'true',
         });
 
-        // Store PI creation details
-        await admin.firestore().collection('stripe_donation_payment_intents').doc(paymentIntent.id).set({
+        await admin.firestore().collection('donations').add({
             name,
             email,
             phone,
-            amount: cleanedAmount, 
-            status: 'created',
-            sourceApp: SOURCE_APP_TAG, 
+            amount: cleanedAmount,
+            status: 'succeeded',
+            gateway: 'sola',
+            referenceNumber: gatewayResponse.xRefNum,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            sourceApp: SOURCE_APP_TAG,
         });
 
-        return { clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id };
+        return { status: gatewayResponse.xResult || 'A', referenceNumber: gatewayResponse.xRefNum };
 
     } catch (error) {
-        console.error('Error creating Stripe PaymentIntent for donation:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to create donation PaymentIntent.');
-    }
-});
-
-/**
- * Stripe Webhook Listener (HTTP Request Function).
- * Simplified to ONLY handle 'spin' (spin) and 'donation' entry types.
- */
-exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    
-    // NOTE: For sandbox testing, ensure you use the **Stripe TEST Webhook Secret** for this endpoint.
-    if (!stripeWebhookSecret) {
-        console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
-        return res.status(500).send('Webhook Error: Missing webhook secret');
-    }
-    
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret);
-    } catch (err) {
-      console.error(`Webhook signature verification failed: ${err.message}`);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object;
-
-      // Metadata extraction
-      const { name, email, phone, ticketNumber, entryType, sourceApp } = paymentIntent.metadata;
-
-      const firstName = name.split(' ')[0] || name;
-      const amountCharged = cleanAmount(paymentIntent.amount / 100); 
-      
-      try {
-        const db = admin.firestore();
-
-        // --- spin Ticket Processing (Spin to Win) ---
-        if (entryType === 'spin') {
-            // ticketNumber is the document ID/base price in USD
-            const spinTicketRef = db.collection('spin_tickets').doc(ticketNumber); 
-            
-            // The amountPaid field stores the base amount (ticketNumber in this case)
-            const amountForSaleRecord = cleanAmount(ticketNumber);
-            
-            await spinTicketRef.update({
-                status: 'paid',
-                paymentIntentId: paymentIntent.id,
-                name,
-                firstName: firstName, 
-                email,
-                phoneNumber: phone, 
-                amountPaid: amountForSaleRecord, // Store fee-excluded base amount
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
-            });
-
-            // Update the temporary PI status doc (if it existed) to prevent reprocessing
-            // NOTE: Since the ticket itself is the primary record, we don't need a separate PI status doc here.
-
+        console.error('Error processing Sola donation:', error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
         }
-        
-        // --- Donation Processing ---
-        else if (entryType === 'donation') {
-            // Update the stripe_donation_payment_intents document
-            const donationIntentRef = db.collection('stripe_donation_payment_intents').doc(paymentIntent.id);
-            
-            // Use the amount from the metadata for the base donation value
-            const donationBaseAmount = cleanAmount(paymentIntent.metadata.amount) || amountCharged;
-
-            await donationIntentRef.update({
-                status: 'succeeded',
-                amountPaid: amountCharged, // Store actual charged amount for PI tracking
-                baseDonationAmount: donationBaseAmount, // Store the intended donation amount
-                webhookProcessed: true,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Mi Keamcha Yisrael Donation (Webhook)'
-            });
-        }
-        
-        // --- Unknown/Unsupported Entry Type ---
-        else {
-            console.warn(`Webhook received for unknown entry type: ${entryType}. Ignoring.`);
-            return res.status(200).send('Webhook processed (ignored unsupported entry type).');
-        }
-
-        res.status(200).send('Webhook processed successfully.');
-
-      } catch (error) {
-        console.error('Error processing payment_intent.succeeded webhook:', error);
-        res.status(500).send('Internal Server Error during webhook processing.');
-      }
-    } else {
-      res.status(200).send('Webhook event ignored (uninteresting type).');
+        throw new functions.https.HttpsError('internal', 'Failed to process donation.');
     }
 });
 
