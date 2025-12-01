@@ -135,22 +135,21 @@
         }
     </style>
 </head>
-<body class="text-white h-screen flex flex-col overflow-hidden">
+<body class="text-white min-h-screen flex flex-col">
 
-    <!-- Header (Branded) --><header class="bg-black/40 py-3 px-4 md:px-8 w-full z-50 shadow-2xl backdrop-blur-sm">
+    <!-- Header (Transparent Fixed) -->
+    <header class="bg-black/40 py-4 px-4 md:px-12 fixed w-full top-0 z-50 shadow-2xl backdrop-blur-sm">
         <nav class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center">
-                <a href="/" class="flex items-center">
-                    <img src="/assets/logo.png" alt="Mi Keamcha Yisrael Logo" class="h-12 md:h-14 w-auto rounded-full ring-2 ring-ma-gold p-1">
-                </a>
-            </div>
-            <ul class="flex items-center">
-                <li><a href="/" class="py-2 px-4 rounded-full bg-ma-gold text-ma-navy hover:bg-ma-gold/80 transition-colors duration-300 font-bold text-sm md:text-base">Back to Raffle</a></li>
-            </ul>
+            <a href="/" class="flex items-center space-x-3">
+                <img src="/assets/logo.png" alt="Mi Keamcha Yisrael Logo" class="h-12 md:h-14 w-auto rounded-full ring-2 ring-ma-gold p-1">
+                <span class="bebas-neue text-xl md:text-2xl tracking-wider text-white hidden md:block">MI KEAMCHA YISRAEL</span>
+            </a>
+            <a href="/" class="py-2 px-5 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors duration-300">Back to Home</a>
         </nav>
     </header>
 
-    <!-- Main Content (Compact and Centered) --><main class="flex-grow flex items-center justify-center px-4 py-4 overflow-y-auto">
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center px-4 py-8 pt-32 pb-8">
         <!-- Compact success card --><div class="w-full max-w-xl mx-auto text-center p-6 md:p-8 glass-panel rounded-2xl shadow-2xl">
             <h1 class="bebas-neue text-4xl md:text-5xl font-bold text-ma-gold mb-3 drop-shadow-lg">
                 Thank You!
