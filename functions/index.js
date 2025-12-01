@@ -20,6 +20,7 @@ if (!stripeSecretKey) {
 }
 
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripeEmailWebhookSecret = process.env.STRIPE_EMAIL_WEBHOOK_SECRET;
 
 const stripe = require('stripe')(stripeSecretKey);
 
@@ -1028,6 +1029,56 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
       }
     } else {
       res.status(200).send('Webhook event ignored (uninteresting type).');
+    }
+});
+
+/**
+ * Stripe Email Receipt Webhook Listener
+ * Verifies with STRIPE_EMAIL_WEBHOOK_SECRET and sends styled receipt emails.
+ * Does not alter existing webhook behavior.
+ */
+exports.stripeEmailWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+
+    if (!stripeEmailWebhookSecret) {
+        console.error('Missing STRIPE_EMAIL_WEBHOOK_SECRET environment variable');
+        return res.status(500).send('Webhook Error: Missing email webhook secret');
+    }
+
+    let event;
+    try {
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeEmailWebhookSecret);
+    } catch (err) {
+        console.error(`Email webhook signature verification failed: ${err.message}`);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object;
+
+        const { name, email, ticketNumber, entryType } = paymentIntent.metadata || {};
+
+        if (!email || !name) {
+            console.warn('Missing email or name in PaymentIntent metadata; skipping receipt email.');
+            return res.status(200).send('Processed without email send (missing metadata).');
+        }
+
+        try {
+            await saveEmailToCollection(email, name);
+
+            // Amount in dollars
+            const amountCharged = cleanAmount(paymentIntent.amount / 100);
+            const ticketNum = ticketNumber || 'N/A';
+
+            await sendReceiptEmail(email, name, ticketNum, amountCharged, 'card');
+
+            return res.status(200).send('Receipt email sent.');
+        } catch (error) {
+            console.error('Error sending receipt email:', error);
+            return res.status(500).send('Internal Error sending receipt email.');
+        }
+    } else {
+        return res.status(200).send('Webhook event ignored (uninteresting type).');
     }
 });
 
