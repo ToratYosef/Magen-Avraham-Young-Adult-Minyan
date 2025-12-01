@@ -317,6 +317,28 @@ function isAdmin(context) {
     return context.auth && (context.auth.token.admin === true || context.auth.token.superAdmin === true);
 }
 
+async function verifyAdminHttpRequest(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        const error = new Error('Unauthorized. Missing or invalid Bearer token.');
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const idToken = authHeader.slice(7);
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const userRecord = await admin.auth().getUser(decodedToken.uid);
+    const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
+
+    if (!isAdminUser) {
+        const error = new Error('Forbidden. User does not have admin privileges.');
+        error.statusCode = 403;
+        throw error;
+    }
+
+    return { decodedToken, userRecord };
+}
+
 // --- USER MANAGEMENT FUNCTIONS (Kept for general admin utility) ---
 
 /**
@@ -710,7 +732,7 @@ async function createSpinPaymentIntentCore(data) {
     const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
     const TOTAL_TICKETS = 500;
 
-    const { name, email, phone } = data || {};
+    const { name, email, phone, coverFees } = data || {};
     const firstName = (name || '').split(' ')[0] || name;
 
     if (!name || !email || !phone) {
@@ -755,7 +777,11 @@ async function createSpinPaymentIntentCore(data) {
         throw new functions.https.HttpsError('resource-exhausted', 'All tickets have been claimed. Please try again later.');
     }
 
-    const amountInCents = ticketNumber * 100;
+    const baseAmount = cleanAmount(ticketNumber);
+    const mandatoryFees = cleanAmount(baseAmount * 0.02); // 1% international + 1% currency conversion
+    const processingFee = coverFees ? cleanAmount(baseAmount * 0.022 + 0.30) : 0;
+    const totalCharge = cleanAmount(baseAmount + mandatoryFees + processingFee);
+    const amountInCents = Math.round(totalCharge * 100);
 
     try {
         const paymentIntent = await stripe.paymentIntents.create({
@@ -768,23 +794,28 @@ async function createSpinPaymentIntentCore(data) {
                 email,
                 phone,
                 ticketsBought: '1',
-                baseAmount: ticketNumber.toString(),
+                baseAmount: baseAmount.toString(),
+                mandatoryFees: mandatoryFees.toString(),
+                processingFee: processingFee.toString(),
+                coverFees: coverFees ? 'true' : 'false',
+                totalCharge: totalCharge.toString(),
                 ticketNumber: ticketNumber.toString(),
                 entryType: 'spin',
                 sourceApp: SOURCE_APP_TAG,
             },
         });
 
-        // Update ticket with payment intent ID for webhook lookup
-        await db.collection('spin_tickets').doc(ticketNumber.toString()).update({
-            paymentIntentId: paymentIntent.id,
-            id: ticketNumber.toString(),
-        });
-
-        // Save email to collection immediately
-        await saveEmailToCollection(email, name);
-
-        return { clientSecret: paymentIntent.client_secret, ticketNumber };
+        return {
+            clientSecret: paymentIntent.client_secret,
+            ticketNumber,
+            chargeSummary: {
+                baseAmount,
+                mandatoryFees,
+                processingFee,
+                totalCharge,
+                coverFees: !!coverFees,
+            }
+        };
     } catch (error) {
         if (ticketNumber) {
             try {
@@ -926,7 +957,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
       const paymentIntent = event.data.object;
 
       // Metadata extraction
-      const { name, email, phone, ticketNumber, entryType, sourceApp } = paymentIntent.metadata;
+      const { name, email, phone, ticketNumber, entryType, sourceApp, totalCharge, baseAmount, processingFee, mandatoryFees, coverFees } = paymentIntent.metadata;
 
       const firstName = name.split(' ')[0] || name;
       const amountCharged = cleanAmount(paymentIntent.amount / 100); 
@@ -940,19 +971,25 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
             const spinTicketRef = db.collection('spin_tickets').doc(ticketNumber); 
             
             // The amountPaid field stores the base amount (ticketNumber in this case)
-            const amountForSaleRecord = cleanAmount(ticketNumber);
+            const baseSaleAmount = cleanAmount(baseAmount || ticketNumber);
+            const amountForSaleRecord = amountCharged || cleanAmount(totalCharge) || baseSaleAmount;
+            const totalFeesPaid = cleanAmount(amountForSaleRecord - baseSaleAmount);
             
-            await spinTicketRef.update({
-                status: 'paid',
-                paymentIntentId: paymentIntent.id,
-                name,
-                firstName: firstName, 
-                email,
-                phoneNumber: phone, 
-                amountPaid: amountForSaleRecord, // Store fee-excluded base amount
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
-            });
+                await spinTicketRef.update({
+                    status: 'paid',
+                    paymentIntentId: paymentIntent.id,
+                    name,
+                    firstName: firstName,
+                    email,
+                    phoneNumber: phone,
+                    amountPaid: amountForSaleRecord, // Store total collected including any fees
+                    baseAmount: baseSaleAmount,
+                    totalFeesPaid,
+                    processingFeePaid: cleanAmount(processingFee || (coverFees === 'true' ? totalFeesPaid : 0)),
+                    mandatoryFeesPaid: cleanAmount(mandatoryFees || (totalFeesPaid - (processingFee || 0))),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
+                });
 
             // Update the temporary PI status doc (if it existed) to prevent reprocessing
             // NOTE: Since the ticket itself is the primary record, we don't need a separate PI status doc here.
@@ -1080,19 +1117,7 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
         }
 
         try {
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized. Missing or invalid Bearer token.' });
-            }
-
-            const idToken = authHeader.slice(7);
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const userRecord = await admin.auth().getUser(decodedToken.uid);
-            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
-
-            if (!isAdminUser) {
-                return res.status(403).json({ message: 'Forbidden. User does not have admin privileges.' });
-            }
+            await verifyAdminHttpRequest(req);
 
             const { name, email, phone } = req.body;
 
@@ -1117,19 +1142,20 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
                     await db.runTransaction(async (transaction) => {
                         const ticketSnap = await transaction.get(ticketRef);
 
-                        if (!ticketSnap.exists || (ticketSnap.data().status !== 'reserved' && ticketSnap.data().status !== 'paid' && ticketSnap.data().status !== 'claimed' && ticketSnap.data().status !== 'waiting_for_payment')) {
-                            const amount = cleanAmount(randomTicket);
-                            
+                        if (!ticketSnap.exists || (ticketSnap.data().status !== 'reserved' && ticketSnap.data().status !== 'paid' && ticketSnap.data().status !== 'claimed')) {
                             transaction.set(ticketRef, {
                                 id: randomTicket.toString(),
-                                status: 'waiting_for_payment',
+                                status: 'paid',
                                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                                 name,
                                 firstName,
                                 email,
                                 phoneNumber: phone,
-                                amountDue: amount,
-                                paymentMethod: 'cash',
+                                amountPaid: cleanAmount(randomTicket),
+                                baseAmount: cleanAmount(randomTicket),
+                                totalFeesPaid: 0,
+                                processingFeePaid: 0,
+                                mandatoryFeesPaid: 0,
                                 sourceApp: SOURCE_APP,
                             }, { merge: true });
                             assigned = true;
@@ -1149,163 +1175,11 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
                 return res.status(409).json({ message: 'Unable to assign a ticket. All tickets may be claimed.' });
             }
 
-            const amountDue = cleanAmount(ticketNumber);
-
-            // Save email to collection
-            await saveEmailToCollection(email, name);
-
             return res.status(200).json({
                 success: true,
                 ticketId: ticketNumber.toString(),
                 ticketNumber: ticketNumber,
-                amountDue: amountDue,
-                message: `Manual ticket #${ticketNumber} created with amount $${amountDue.toFixed(2)} - waiting for payment.`
-            });
-
-        } catch (error) {
-            console.error('Error adding manual ticket:', error);
-            return res.status(500).json({ message: 'Failed to add manual ticket.', error: error.message });
-        }
-    });
-});
-
-// ============================================================
-// EMAIL & WEBHOOK SYSTEM
-// ============================================================
-
-/**
- * Stripe Webhook Handler
- * Handles payment_intent.succeeded events and sends receipt emails
- */
-const webhookApp = express();
-webhookApp.use('/webhook', bodyParser.raw({ type: 'application/json' }));
-
-webhookApp.post('/webhook', async (req, res) => {
-    let event;
-
-    try {
-        const sig = req.headers['stripe-signature'];
-        event = stripe.webhooks.constructEvent(
-            req.body,
-            sig,
-            stripeWebhookSecret
-        );
-    } catch (err) {
-        console.error('⚠️  Webhook signature verification failed:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    // Handle successful payment
-    if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object;
-        
-        try {
-            const db = admin.firestore();
-            
-            // Find the ticket by payment intent ID
-            const ticketsSnapshot = await db.collection('spin_tickets')
-                .where('paymentIntentId', '==', paymentIntent.id)
-                .limit(1)
-                .get();
-
-            if (!ticketsSnapshot.empty) {
-                const ticketDoc = ticketsSnapshot.docs[0];
-                const ticketData = ticketDoc.data();
-                
-                // Update ticket status to paid
-                await ticketDoc.ref.update({
-                    status: 'paid',
-                    paidAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-
-                // Save email to collection
-                await saveEmailToCollection(ticketData.email, ticketData.name);
-
-                // Send receipt email
-                await sendReceiptEmail(
-                    ticketData.email,
-                    ticketData.name,
-                    ticketData.id,
-                    parseFloat(ticketData.id), // Amount is the ticket number
-                    'card'
-                );
-
-                console.log(`✅ Processed payment for ticket #${ticketData.id}`);
-            } else {
-                console.warn(`⚠️  No ticket found for payment intent ${paymentIntent.id}`);
-            }
-        } catch (error) {
-            console.error('Error processing payment webhook:', error);
-        }
-    }
-
-    res.json({ received: true });
-});
-
-exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(webhookApp);
-
-/**
- * HTTP Endpoint to mark manual ticket as paid and send receipt
- * Called when admin marks a waiting_for_payment ticket as paid
- */
-exports.markTicketPaidHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).send({ message: 'Method Not Allowed. Use POST.' });
-        }
-
-        try {
-            // Verify admin authorization
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized. Missing or invalid Bearer token.' });
-            }
-
-            const idToken = authHeader.slice(7);
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const userRecord = await admin.auth().getUser(decodedToken.uid);
-            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
-
-            if (!isAdminUser) {
-                return res.status(403).json({ message: 'Forbidden. Admin privileges required.' });
-            }
-
-            const { ticketId } = req.body;
-            if (!ticketId) {
-                return res.status(400).json({ message: 'Missing ticketId.' });
-            }
-
-            const db = admin.firestore();
-            const ticketRef = db.collection('spin_tickets').doc(ticketId);
-            const ticketDoc = await ticketRef.get();
-
-            if (!ticketDoc.exists) {
-                return res.status(404).json({ message: 'Ticket not found.' });
-            }
-
-            const ticketData = ticketDoc.data();
-
-            // Update to paid status
-            await ticketRef.update({
-                status: 'paid',
-                paidAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-
-            // Save email to collection
-            await saveEmailToCollection(ticketData.email, ticketData.name);
-
-            // Send receipt email
-            await sendReceiptEmail(
-                ticketData.email,
-                ticketData.name,
-                ticketData.id,
-                ticketData.amountDue || parseFloat(ticketData.id),
-                ticketData.paymentMethod || 'cash'
-            );
-
-            return res.status(200).json({ 
-                success: true, 
-                message: `Ticket #${ticketId} marked as paid and receipt sent.` 
+                message: `Manual ticket #${ticketNumber} created successfully for ${name}.`
             });
 
         } catch (error) {
@@ -1315,198 +1189,84 @@ exports.markTicketPaidHttp = functions.runWith({ runtime: 'nodejs20' }).https.on
     });
 });
 
-/**
- * HTTP Endpoint to send "Drawing Soon" email to all subscribers
- */
-exports.sendDrawingSoonEmailHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
+exports.deleteTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'DELETE') {
+            return res.status(405).send({ message: 'Method Not Allowed. Use DELETE.' });
+        }
+
+        try {
+            await verifyAdminHttpRequest(req);
+
+            const { ticketId } = req.body || {};
+            if (!ticketId) {
+                return res.status(400).json({ message: 'Missing ticketId.' });
+            }
+
+            const db = admin.firestore();
+            await db.collection('spin_tickets').doc(ticketId.toString()).delete();
+
+            return res.status(200).json({ success: true, message: `Ticket #${ticketId} deleted.` });
+        } catch (error) {
+            const status = error.statusCode || 500;
+            console.error('Error deleting ticket:', error);
+            return res.status(status).json({ message: error.message || 'Failed to delete ticket.' });
+        }
+    });
+});
+
+exports.refundTicketPaymentHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             return res.status(405).send({ message: 'Method Not Allowed. Use POST.' });
         }
 
         try {
-            // Verify admin authorization
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized.' });
-            }
+            const { userRecord } = await verifyAdminHttpRequest(req);
+            const { ticketId } = req.body || {};
 
-            const idToken = authHeader.slice(7);
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const userRecord = await admin.auth().getUser(decodedToken.uid);
-            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
-
-            if (!isAdminUser) {
-                return res.status(403).json({ message: 'Forbidden.' });
+            if (!ticketId) {
+                return res.status(400).json({ message: 'Missing ticketId.' });
             }
 
             const db = admin.firestore();
-            const emailsSnapshot = await db.collection('emails')
-                .where('subscribed', '==', true)
-                .get();
+            const ticketRef = db.collection('spin_tickets').doc(ticketId.toString());
+            const ticketSnap = await ticketRef.get();
 
-            const content = `
-                <p>The moment you've been waiting for is almost here!</p>
-                
-                <div class="highlight-box">
-                    <h2 style="margin: 0; font-size: 36px;">🎉 RAFFLE DRAWING SOON!</h2>
-                    <p style="font-size: 18px; margin-top: 15px;">Stay tuned for the announcement</p>
-                </div>
-
-                <p>Thank you for supporting Mi Keamcha Yisrael. We'll be announcing the winners very soon!</p>
-
-                <p>Make sure to check your email and our website for the results.</p>
-
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="https://mi-keamcha-yisrael.web.app" class="button">Visit Website</a>
-                </div>
-
-                <p style="margin-top: 30px; text-align: center; color: #9CA3AF;">
-                    Good luck to all participants! 🍀
-                </p>
-            `;
-
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const doc of emailsSnapshot.docs) {
-                const emailData = doc.data();
-                try {
-                    const mailOptions = {
-                        from: process.env.EMAIL_FROM,
-                        to: emailData.email,
-                        subject: '🎉 Mi Keamcha Yisrael Raffle - Drawing Soon!',
-                        html: getEmailTemplate('Raffle Drawing Announcement', content),
-                    };
-
-                    await transporter.sendMail(mailOptions);
-                    successCount++;
-                } catch (error) {
-                    console.error(`Failed to send to ${emailData.email}:`, error);
-                    failCount++;
-                }
+            if (!ticketSnap.exists) {
+                return res.status(404).json({ message: `Ticket #${ticketId} not found.` });
             }
 
-            return res.status(200).json({ 
-                success: true, 
-                message: `Sent ${successCount} emails, ${failCount} failed.`,
-                sent: successCount,
-                failed: failCount
-            });
+            const ticketData = ticketSnap.data();
+            const paymentIntentId = ticketData.paymentIntentId;
 
+            if (!paymentIntentId) {
+                return res.status(400).json({ message: `Ticket #${ticketId} does not have a Stripe payment to refund.` });
+            }
+
+            if (ticketData.status === 'refunded') {
+                return res.status(400).json({ message: `Ticket #${ticketId} was already refunded.` });
+            }
+
+            const refund = await stripe.refunds.create({ payment_intent: paymentIntentId });
+
+            await ticketRef.set({
+                status: 'refunded',
+                refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+                refundId: refund.id,
+                amountRefunded: cleanAmount(refund.amount / 100),
+                refundRequestedBy: userRecord.email || userRecord.uid,
+            }, { merge: true });
+
+            return res.status(200).json({
+                success: true,
+                message: `Refund issued for ticket #${ticketId}.`,
+                refundId: refund.id,
+            });
         } catch (error) {
-            console.error('Error sending drawing soon emails:', error);
-            return res.status(500).json({ message: 'Failed to send emails.', error: error.message });
+            const status = error.statusCode || 500;
+            console.error('Error issuing refund:', error);
+            return res.status(status).json({ message: error.message || 'Failed to process refund.' });
         }
     });
 });
-
-/**
- * HTTP Endpoint to send "Tickets Running Out" email to all subscribers
- */
-exports.sendTicketsRunningOutEmailHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).send({ message: 'Method Not Allowed. Use POST.' });
-        }
-
-        try {
-            // Verify admin authorization
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized.' });
-            }
-
-            const idToken = authHeader.slice(7);
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const userRecord = await admin.auth().getUser(decodedToken.uid);
-            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
-
-            if (!isAdminUser) {
-                return res.status(403).json({ message: 'Forbidden.' });
-            }
-
-            const db = admin.firestore();
-            
-            // Calculate tickets left
-            const ticketsSnapshot = await db.collection('spin_tickets')
-                .where('status', 'in', ['paid', 'claimed'])
-                .get();
-            
-            const ticketsLeft = 500 - ticketsSnapshot.size;
-
-            const emailsSnapshot = await db.collection('emails')
-                .where('subscribed', '==', true)
-                .get();
-
-            const content = `
-                <p>Don't miss your chance to win amazing prizes!</p>
-                
-                <div class="highlight-box">
-                    <p class="label">Tickets Remaining</p>
-                    <p class="ticket-number">${ticketsLeft}</p>
-                    <div class="divider"></div>
-                    <h2 style="margin: 10px 0; font-size: 28px; color: #ef4444;">⚠️ RUNNING OUT FAST!</h2>
-                </div>
-
-                <p>Only <strong style="color: #C9A961;">${ticketsLeft} tickets</strong> remain in our raffle. Once they're gone, they're gone for good!</p>
-
-                <h2>Amazing Prizes:</h2>
-                <div class="info-row">
-                    🏆 <strong>1st Prize:</strong> Oyster Perpetual Datejust ($16.5K Value)
-                </div>
-                <div class="info-row">
-                    🌴 <strong>2nd Prize:</strong> Surfside Florida Getaway
-                </div>
-                <div class="info-row">
-                    💵 <strong>3rd Prize:</strong> $2,000 Cash
-                </div>
-                <div class="info-row">
-                    💵 <strong>4th Prize:</strong> $1,000 Cash
-                </div>
-
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="https://mi-keamcha-yisrael.web.app" class="button">Get Your Ticket Now!</a>
-                </div>
-
-                <p style="margin-top: 30px; text-align: center; color: #9CA3AF;">
-                    Act fast before all ${ticketsLeft} remaining tickets are sold! 🎟️
-                </p>
-            `;
-
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const doc of emailsSnapshot.docs) {
-                const emailData = doc.data();
-                try {
-                    const mailOptions = {
-                        from: process.env.EMAIL_FROM,
-                        to: emailData.email,
-                        subject: `⚠️ Only ${ticketsLeft} Tickets Left - Mi Keamcha Yisrael Raffle!`,
-                        html: getEmailTemplate('Limited Tickets Remaining', content),
-                    };
-
-                    await transporter.sendMail(mailOptions);
-                    successCount++;
-                } catch (error) {
-                    console.error(`Failed to send to ${emailData.email}:`, error);
-                    failCount++;
-                }
-            }
-
-            return res.status(200).json({ 
-                success: true, 
-                message: `Sent ${successCount} emails about ${ticketsLeft} tickets left. ${failCount} failed.`,
-                sent: successCount,
-                failed: failCount,
-                ticketsLeft: ticketsLeft
-            });
-
-        } catch (error) {
-            console.error('Error sending tickets running out emails:', error);
-            return res.status(500).json({ message: 'Failed to send emails.', error: error.message });
-        }
-    });
-});
-

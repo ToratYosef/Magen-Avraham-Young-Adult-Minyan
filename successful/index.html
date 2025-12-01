@@ -157,12 +157,17 @@
             <p id="success-message" class="text-base md:text-lg text-gray-300 mb-6">
                 Your purchase was successful.
             </p>
-            <div id="ticket-info" class="mb-6">
-                <div class="glass-outline p-6 rounded-xl shadow-xl">
-                    <p class="text-xs uppercase tracking-wider text-ma-gold font-semibold mb-2">Your Ticket Price</p>
-                    <div class="text-4xl md:text-5xl font-bold bebas-neue text-white drop-shadow-lg">
+            <div id="ticket-info" class="space-y-4">
+                <!-- Inner Card uses Dark Slate and Gold Accents --><div class="glass-outline p-8 rounded-2xl shadow-xl">
+                    <p class="text-sm uppercase tracking-wider text-ma-gold font-semibold mb-3">Your Ticket Number</p>
+                    <div class="text-5xl sm:text-6xl md:text-7xl font-bold bebas-neue text-white drop-shadow-lg">
                         <span id="ticketNumberDisplay">N/A</span>
                     </div>
+                    <p class="text-sm uppercase tracking-wider text-ma-gold font-semibold mt-6 mb-2">Total Paid (Including Fees)</p>
+                    <div class="text-3xl sm:text-4xl md:text-5xl font-bold bebas-neue text-white drop-shadow-lg">
+                        <span id="ticketPaidDisplay">$0.00</span>
+                    </div>
+                    <p id="ticketFeesDisplay" class="text-gray-300 text-sm mt-2"></p>
                 </div>
             </div>
             <p class="text-sm md:text-base text-gray-400 mb-6">
@@ -227,12 +232,16 @@
             const urlParams = new URLSearchParams(window.location.search);
             const name = urlParams.get('name') || 'Valued Donor';
             const tickets = urlParams.get('tickets') || '1';
-            const amount = urlParams.get('amount') || 'your ticket price';
+            const ticketNumber = urlParams.get('ticketNumber') || urlParams.get('amount') || 'your ticket number';
+            const amount = parseFloat(urlParams.get('amount') || ticketNumber || '0') || 0;
+            const totalPaid = parseFloat(urlParams.get('totalPaid') || amount || '0') || amount;
+            const feesPaid = parseFloat(urlParams.get('feesPaid') || (totalPaid - amount) || '0') || 0;
 
             document.getElementById('success-message').textContent = `Hi ${name}, your purchase of ${tickets} ticket${tickets > 1 ? 's' : ''} was successful!`;
-            
-            // Displays the price charged, which is the winning ticket number.
-            document.getElementById('ticketNumberDisplay').textContent = `$${amount}.00`;
+            document.getElementById('ticketNumberDisplay').textContent = `#${ticketNumber}`;
+            document.getElementById('ticketPaidDisplay').textContent = `$${totalPaid.toFixed(2)}`;
+            const feesText = feesPaid > 0 ? `Includes $${feesPaid.toFixed(2)} in fees to keep the raffle whole.` : 'No additional fees were applied.';
+            document.getElementById('ticketFeesDisplay').textContent = feesText;
         });
     </script>
 </body>
