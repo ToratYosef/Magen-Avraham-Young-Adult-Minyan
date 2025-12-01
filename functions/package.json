@@ -13,11 +13,14 @@
   },
   "main": "index.js",
   "dependencies": {
+    "body-parser": "^2.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "express": "^5.1.0",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.0.1",
-    "stripe": "^19.1.0"
+    "nodemailer": "^7.0.11",
+    "stripe": "^19.3.1"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0"

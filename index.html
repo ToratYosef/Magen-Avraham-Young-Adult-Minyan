@@ -594,10 +594,10 @@
                         <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
                             data-name="3rd Prize: $2,000 Cash"
                             data-desc="Win $2,000 in cash to spend however you like."
-                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash2.jpg"
                             onclick="showPrizeModal(this)">
                             <h3 class="bebas-neue text-3xl text-ma-gold mb-4">3rd Prize:<br>$2,000 Cash<br></h3>
-                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash2.jpg"
                                 onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Cash+Prize'"
                                 alt="$2,000 Cash" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
                             <p class="text-white text-base font-semibold">Pocket $2,000 in cash as the third prize winner.</p>
@@ -605,10 +605,10 @@
                         <div class="prize-card bg-ma-slate/60 p-8 rounded-xl gold-white-glow transform transition duration-300 hover:scale-[1.02] cursor-pointer text-white"
                             data-name="4th Prize: $1,000 Cash"
                             data-desc="Receive $1,000 in cash as the fourth prize."
-                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                            data-img="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash1.jpeg"
                             onclick="showPrizeModal(this)">
                             <h3 class="bebas-neue text-3xl text-ma-gold mb-4">4th Prize:<br>$1,000 Cash<br></h3>
-                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash.jpeg"
+                            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/cash1.jpeg"
                                 onerror="this.onerror=null; this.src='https://placehold.co/400x300/1e293b/B89A5F?text=Cash+Prize'"
                                 alt="$1,000 Cash" class="w-full h-auto rounded-lg mb-4 object-contain max-h-60">
                             <p class="text-white text-base font-semibold">Pocket $1,000 in cash as the fourth prize winner.<br><br></p>
@@ -661,16 +661,38 @@
     </div>
     <!-- End Prize Modal Structure -->
     
-    <!-- FOOTER (Simplified - Contact Info Removed) -->
-    <footer class="bg-black/40 py-6 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
-        <div class="container mx-auto px-4 text-center">
-            <p class="text-sm text-gray-500 mb-1">
-                &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.
-            </p>
-            <p class="text-sm text-gray-500">
-                Website created by 
-                <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a>
-            </p>
+    <!-- FOOTER -->
+    <footer class="bg-black/40 py-8 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)] backdrop-blur-sm border-t border-ma-gold/20">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+                <div class="text-center md:text-left">
+                    <h3 class="text-ma-gold font-bold mb-2">Mi Keamcha Yisrael</h3>
+                    <p class="text-sm text-gray-400">Supporting our community through charitable initiatives.</p>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-ma-gold font-bold mb-2">Quick Links</h3>
+                    <ul class="text-sm text-gray-400 space-y-1">
+                        <li><a href="/" class="hover:text-ma-gold transition-colors">Home</a></li>
+                        <li><a href="/terms.html" class="hover:text-ma-gold transition-colors">Terms of Service</a></li>
+                        <li><a href="/privacy.html" class="hover:text-ma-gold transition-colors">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div class="text-center md:text-right">
+                    <h3 class="text-ma-gold font-bold mb-2">Contact</h3>
+                    <p class="text-sm text-gray-400">
+                        <a href="sms:9295845753" class="hover:text-ma-gold transition-colors">Text: 929-584-5753</a>
+                    </p>
+                </div>
+            </div>
+            <div class="border-t border-ma-gold/20 pt-4 text-center">
+                <p class="text-sm text-gray-500 mb-1">
+                    &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.
+                </p>
+                <p class="text-sm text-gray-500">
+                    Website created by 
+                    <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a>
+                </p>
+            </div>
         </div>
     </footer>
 
@@ -1049,9 +1071,8 @@
                     
                     if (user.isAnonymous && !user.uid) return;
 
-                    // Listen to the 'spin_tickets' collection (assuming a rename for clarity, matching the backend)
-                    // Original code used 'rolex_tickets', keeping that name for minimal change impact
-                    db.collection('rolex_tickets').onSnapshot((querySnapshot) => { 
+                    // Listen to the 'spin_tickets' collection
+                    db.collection('spin_tickets').onSnapshot((querySnapshot) => { 
                         let paidOrClaimedCount = 0;
                         querySnapshot.forEach(doc => {
                             const ticket = doc.data();
