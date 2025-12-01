@@ -110,7 +110,7 @@
         </div>
 
         <!-- Dashboard State -->
-        <div id="dashboard-state" class="hidden w-full max-w-7xl dashboard-panel rounded-xl p-6 md:p-8 space-y-6">
+        <div id="dashboard-state" class="hidden w-full max-w-[1400px] dashboard-panel rounded-xl p-6 md:p-8 space-y-6">
             <div class="flex justify-between items-center flex-wrap gap-4 border-b border-ma-gold/50 pb-4">
                 <h1 class="bebas-neue text-3xl text-ma-gold">Raffle Ticket Sales</h1>
                 <div class="flex items-center space-x-4">
@@ -165,6 +165,7 @@
                             <th class="p-3" data-sort-key="phoneNumber">Phone<span class="sort-icon"></span></th>
                             <th class="p-3" data-sort-key="amountPaid">Amount Paid<span class="sort-icon"></span></th>
                             <th class="p-3" data-sort-key="timestamp">Timestamp<span class="sort-icon"></span></th>
+                            <th class="p-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="tickets-table-body">
@@ -245,10 +246,42 @@
                 <input type="text" id="manual-name" placeholder="Full Name" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
                 <input type="email" id="manual-email" placeholder="Email" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
                 <input type="tel" id="manual-phone" placeholder="Phone" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
-                <input type="number" id="manual-amount" placeholder="Amount ($1-$500)" min="1" max="500" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
+                <p class="text-sm text-gray-300">Ticket number and amount will be assigned automatically.</p>
                 <button id="submitManualSpinButton" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">
                     Add to Wheel & Spin
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[160] p-4 hidden">
+        <div class="bg-ma-slate/90 p-6 rounded-xl shadow-2xl w-full max-w-md border border-ma-gold">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="bebas-neue text-2xl text-ma-gold">Confirm Deletion</h2>
+                <button id="closeDeleteModal" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-gray-200 mb-4">Are you sure you want to delete ticket <span id="deleteTicketLabel" class="font-bold text-ma-gold"></span>? This cannot be undone.</p>
+            <div class="flex space-x-3">
+                <button id="confirmDeleteButton" class="flex-1 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold">Yes, Delete</button>
+                <button id="cancelDeleteButton" class="flex-1 py-2 rounded-full bg-gray-600 hover:bg-gray-700 text-white font-semibold">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secret Refund Modal -->
+    <div id="refundModal" class="fixed inset-0 bg-black/75 flex items-center justify-center z-[170] p-4 hidden">
+        <div class="bg-ma-slate/90 p-6 rounded-xl shadow-2xl w-full max-w-lg border border-ma-gold space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="bebas-neue text-2xl text-ma-gold">Refund a Ticket</h2>
+                <button id="closeRefundModal" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-gray-200 text-sm">Select a paid order to refund through Stripe.</p>
+            <select id="refund-ticket-select" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white focus:outline-none focus:ring-2 focus:ring-ma-gold"></select>
+            <p id="refundStatusText" class="text-sm text-gray-300"></p>
+            <div class="flex space-x-3">
+                <button id="confirmRefundButton" class="flex-1 py-2 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80">Send Refund</button>
+                <button id="cancelRefundButton" class="flex-1 py-2 rounded-full bg-gray-600 hover:bg-gray-700 text-white font-semibold">Cancel</button>
             </div>
         </div>
     </div>
@@ -270,6 +303,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         const functions = firebase.functions(); // Initialize functions
+        const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
 
         // --- DOM Elements ---
         const loadingState = document.getElementById('loading-state');
@@ -287,14 +321,27 @@
         const reservedTicketsDisplay = document.getElementById('reserved-tickets-display');
         const ticketsTable = document.getElementById('ticketsTable');
         
-        const cleanupButton = document.getElementById('cleanup-button'); 
-        const exportButton = document.getElementById('export-button'); 
+        const cleanupButton = document.getElementById('cleanup-button');
+        const exportButton = document.getElementById('export-button');
+        const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+        const deleteTicketLabel = document.getElementById('deleteTicketLabel');
+        const closeDeleteModalButton = document.getElementById('closeDeleteModal');
+        const confirmDeleteButton = document.getElementById('confirmDeleteButton');
+        const cancelDeleteButton = document.getElementById('cancelDeleteButton');
+        const refundModal = document.getElementById('refundModal');
+        const refundSelect = document.getElementById('refund-ticket-select');
+        const refundStatusText = document.getElementById('refundStatusText');
+        const confirmRefundButton = document.getElementById('confirmRefundButton');
+        const cancelRefundButton = document.getElementById('cancelRefundButton');
+        const closeRefundModalButton = document.getElementById('closeRefundModal');
 
         // --- State Management ---
         let tickets = []; // Global array to hold all fetched ticket data
-        let unsubscribe = null; 
+        let unsubscribe = null;
         let sortColumn = 'id';
         let sortDirection = 'asc';
+        let selectedDeleteTicketId = null;
+        let secretBuffer = '';
 
         function renderState(state) {
             loadingState.classList.add('hidden');
@@ -375,7 +422,7 @@
         }
 
         function renderTicketsTable(ticketData) {
-            
+
             ticketsTableBody.innerHTML = '';
             let ticketsSold = 0;
             let totalRevenue = 0;
@@ -420,6 +467,11 @@
                     <td class="text-xs">${ticket.phoneNumber || 'N/A'}</td>
                     <td>${paidAmount}</td>
                     <td class="text-gray-400 text-xs">${purchaseTimestamp}</td>
+                    <td>
+                        <button class="delete-ticket-btn px-3 py-1 text-xs rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold" data-ticket-id="${ticket.id}">
+                            Delete
+                        </button>
+                    </td>
                 `;
             });
 
@@ -428,8 +480,118 @@
             totalRevenueDisplay.textContent = formatAmount(totalRevenue);
             reservedTicketsDisplay.textContent = reservedCount.toString();
         }
+
+        function openDeleteModal(ticketId) {
+            selectedDeleteTicketId = ticketId;
+            deleteTicketLabel.textContent = `#${ticketId}`;
+            deleteConfirmModal.classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            deleteConfirmModal.classList.add('hidden');
+            selectedDeleteTicketId = null;
+        }
+
+        function populateRefundSelect() {
+            if (!refundSelect) return;
+            const refundable = tickets.filter(t => (t.status === 'paid' || t.status === 'claimed') && t.paymentIntentId);
+            refundSelect.innerHTML = '';
+
+            if (refundable.length === 0) {
+                refundSelect.innerHTML = '<option>No refundable orders found</option>';
+                refundSelect.disabled = true;
+                return;
+            }
+
+            refundSelect.disabled = false;
+            refundable.sort((a, b) => parseInt(a.id) - parseInt(b.id)).forEach(ticket => {
+                const option = document.createElement('option');
+                option.value = ticket.id;
+                const paidAmount = formatAmount(ticket.amountPaid || ticket.baseAmount || 0);
+                option.textContent = `Ticket #${ticket.id} - ${ticket.name || 'N/A'} - ${paidAmount}`;
+                refundSelect.appendChild(option);
+            });
+        }
+
+        function openRefundModal() {
+            populateRefundSelect();
+            refundStatusText.textContent = '';
+            refundModal.classList.remove('hidden');
+        }
+
+        function closeRefundModal() {
+            refundModal.classList.add('hidden');
+            refundStatusText.textContent = '';
+        }
         
         // --- Event Listeners ---
+
+        ticketsTableBody.addEventListener('click', (event) => {
+            const deleteBtn = event.target.closest('.delete-ticket-btn');
+            if (deleteBtn) {
+                openDeleteModal(deleteBtn.dataset.ticketId);
+            }
+        });
+
+        const performDelete = async () => {
+            if (!selectedDeleteTicketId) return;
+            try {
+                const user = auth.currentUser;
+                if (!user) { alert('Not authenticated.'); return; }
+                const idToken = await user.getIdToken();
+
+                const response = await fetch(`${functionsBaseUrl}/deleteTicketHttp`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ ticketId: selectedDeleteTicketId })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Failed to delete ticket');
+                alert(data.message);
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                closeDeleteModal();
+            }
+        };
+
+        confirmDeleteButton.addEventListener('click', performDelete);
+        closeDeleteModalButton.addEventListener('click', closeDeleteModal);
+        cancelDeleteButton.addEventListener('click', closeDeleteModal);
+
+        const performRefund = async () => {
+            const ticketId = refundSelect && refundSelect.value;
+            if (!ticketId) { refundStatusText.textContent = 'Select an order to refund.'; return; }
+            try {
+                refundStatusText.textContent = 'Processing refund...';
+                const user = auth.currentUser;
+                if (!user) { refundStatusText.textContent = 'Not authenticated.'; return; }
+                const idToken = await user.getIdToken();
+
+                const response = await fetch(`${functionsBaseUrl}/refundTicketPaymentHttp`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({ ticketId })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Refund failed');
+                refundStatusText.textContent = data.message;
+            } catch (error) {
+                refundStatusText.textContent = error.message;
+            }
+        };
+
+        confirmRefundButton.addEventListener('click', performRefund);
+        closeRefundModalButton.addEventListener('click', closeRefundModal);
+        cancelRefundButton.addEventListener('click', closeRefundModal);
 
         // Add event listeners to table headers for sorting
         ticketsTable.querySelectorAll('th[data-sort-key]').forEach(th => {
@@ -437,6 +599,18 @@
                 const key = th.getAttribute('data-sort-key');
                 sortData(key);
             });
+        });
+
+        document.addEventListener('keyup', (event) => {
+            if (dashboardState.classList.contains('hidden')) return;
+            secretBuffer += (event.key || '').toLowerCase();
+            if (secretBuffer.length > 6) {
+                secretBuffer = secretBuffer.slice(-6);
+            }
+            if (secretBuffer === 'hannah') {
+                secretBuffer = '';
+                openRefundModal();
+            }
         });
 
         // --- Ticket Cleanup Logic ---
@@ -459,8 +633,6 @@
                 }
 
                 const idToken = await user.getIdToken();
-                const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
-
                 const response = await fetch(`${functionsBaseUrl}/deleteExpiredReservedTicketsHttp`, {
                     method: 'POST',
                     headers: {
@@ -630,10 +802,8 @@
             const name = document.getElementById('manual-name').value.trim();
             const email = document.getElementById('manual-email').value.trim();
             const phone = document.getElementById('manual-phone').value.trim();
-            const amount = parseInt(document.getElementById('manual-amount').value);
-
-            if (!name || !email || !phone || !amount || amount < 1 || amount > 500) {
-                alert('Please fill all fields with valid data (amount: 1-500).');
+            if (!name || !email || !phone) {
+                alert('Please fill all fields with valid data.');
                 return;
             }
 
@@ -645,15 +815,13 @@
                 }
 
                 const idToken = await user.getIdToken();
-                const functionsBaseUrl = 'https://us-central1-mi-keamcha-yisrael.cloudfunctions.net';
-
                 const response = await fetch(`${functionsBaseUrl}/addManualTicketHttp`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${idToken}`
                     },
-                    body: JSON.stringify({ name, email, phone, amount })
+                    body: JSON.stringify({ name, email, phone })
                 });
 
                 const data = await response.json();
@@ -667,15 +835,9 @@
                 document.getElementById('manual-name').value = '';
                 document.getElementById('manual-email').value = '';
                 document.getElementById('manual-phone').value = '';
-                document.getElementById('manual-amount').value = '';
-                
-                // Add to wheel and spin
-                wheelData.push({ name, email, phoneNumber: phone, id: data.ticketId });
-                const canvas = document.getElementById('wheelCanvas');
-                drawWheel(canvas);
-                document.getElementById('wheelModal').classList.remove('hidden');
-                
-                alert(`Manual ticket #${data.ticketId} created! Adding to wheel...`);
+
+                const assignedTicket = data.ticketNumber || data.ticketId;
+                alert(`Manual ticket #${assignedTicket} created and marked as paid.`);
             } catch (error) {
                 alert(`Error: ${error.message}`);
             }

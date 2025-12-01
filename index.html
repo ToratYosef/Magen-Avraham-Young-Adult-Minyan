@@ -518,6 +518,20 @@
                         <div>
                             <input type="tel" id="spin-phone" name="phone" placeholder="Phone Number" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold transition-all duration-300" required>
                         </div>
+
+                        <div class="flex items-start space-x-3 bg-ma-slate/40 p-3 rounded-lg">
+                            <input type="checkbox" id="cover-fees" class="mt-1 h-5 w-5 rounded border-ma-gold text-ma-gold focus:ring-ma-gold">
+                            <div class="flex-1 text-sm text-gray-200">
+                                <label for="cover-fees" class="font-semibold text-white">I would like to pay the card fees too</label>
+                                <div class="flex items-center space-x-2 mt-1 text-gray-300">
+                                    <span id="cover-fees-tooltip-wrapper" class="relative inline-flex items-center cursor-pointer select-none">
+                                        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-ma-gold text-xs font-bold text-ma-gold mr-1">?</span>
+                                        <span class="text-xs">2.2% + $0.30 per transaction</span>
+                                        <span id="cover-fees-tooltip" class="tooltip hidden absolute top-6 left-0 w-56 bg-black/80 text-xs text-gray-100 p-2 rounded-lg border border-ma-gold">If selected, we will add 2.2% + $0.30 so your full ticket amount goes to the raffle.</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                         
                         <button id="spin-proceed-to-payment" class="w-full py-3 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 relative overflow-hidden glow-button">
                             <span class="button-text">Proceed to Payment</span>
@@ -525,15 +539,24 @@
                         </button>
                     </div>
 
-                    <!-- Stripe payment element container -->
-                    <div id="spin-stripe-payment-element" class="hidden">
-                           <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Payment Details</h2>
-                        <div id="spin-payment-element-container"></div>
-                        <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden glow-button">
-                            <span class="button-text">Pay Now</span>
-                            <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
-                        </button>
-                    </div>
+                     <!-- Stripe payment element container -->
+                     <div id="spin-stripe-payment-element" class="hidden">
+                            <h2 class="bebas-neue text-3xl font-bold text-white mb-4">Payment Details</h2>
+                         <div class="mb-4 text-sm text-gray-200 bg-ma-slate/50 p-3 rounded-lg">
+                             <p class="font-semibold text-ma-gold mb-1">Charges include:</p>
+                             <ul class="list-disc list-inside space-y-1 text-gray-200">
+                                 <li>✨ International cards (online): +1% extra</li>
+                                 <li>✨ Currency conversion: +1% extra</li>
+                                 <li id="processing-fee-note" class="hidden">✨ Your choice to cover processing: +2.2% + $0.30</li>
+                             </ul>
+                             <p id="charge-summary-text" class="mt-2 text-gray-300 text-sm"></p>
+                         </div>
+                         <div id="spin-payment-element-container"></div>
+                         <button id="spin-stripe-pay-button" class="w-full py-3 mt-4 rounded-full bg-ma-gold hover:bg-ma-gold/80 text-ma-navy font-bold transition-colors duration-300 hidden glow-button">
+                             <span class="button-text">Pay Now</span>
+                             <div class="button-spinner absolute inset-0 m-auto w-8 h-8 border-4 border-t-4 border-ma-navy border-opacity-20 rounded-full hidden"></div>
+                         </button>
+                     </div>
                 </div>
 
                 <!-- Prize Display Section -->
@@ -713,8 +736,14 @@
             const spinNameInput = document.getElementById('spin-name');
             const spinEmailInput = document.getElementById('spin-email');
             const spinPhoneInput = document.getElementById('spin-phone');
+            const coverFeesCheckbox = document.getElementById('cover-fees');
+            const coverFeesTooltipWrapper = document.getElementById('cover-fees-tooltip-wrapper');
+            const coverFeesTooltip = document.getElementById('cover-fees-tooltip');
             const spinStripePaymentElement = document.getElementById('spin-stripe-payment-element');
             const spinPaymentElementContainer = document.getElementById('spin-payment-element-container');
+            const processingFeeNote = document.getElementById('processing-fee-note');
+            const chargeSummaryText = document.getElementById('charge-summary-text');
+            const payButtonLabel = spinStripePayButton.querySelector('.button-text');
             
             // Flip Clock Digit IDs (reused for static display)
             const digitHundredsId = 'digit-hundreds';
@@ -736,6 +765,14 @@
             const modalFlashingNumber = document.getElementById('modalFlashingNumber');
             const modalResultDisplay = document.getElementById('modalResultDisplay');
             const modalWinningTicketNumber = document.getElementById('modalWinningTicketNumber');
+
+            if (coverFeesTooltipWrapper && coverFeesTooltip) {
+                const showTooltip = () => coverFeesTooltip.classList.remove('hidden');
+                const hideTooltip = () => coverFeesTooltip.classList.add('hidden');
+                coverFeesTooltipWrapper.addEventListener('mouseenter', showTooltip);
+                coverFeesTooltipWrapper.addEventListener('mouseleave', hideTooltip);
+                coverFeesTooltipWrapper.addEventListener('click', () => coverFeesTooltip.classList.toggle('hidden'));
+            }
             
             // --- Global State (UPDATED: 500 tickets) ---
             const TOTAL_SPIN_TICKETS = 500;
@@ -744,6 +781,8 @@
             let elements;
             let spinTicketNumber = 0;
             let flashInterval;
+            let chargeSummary = null;
+            const cleanAmount = (value = 0) => Math.round(Number(value || 0) * 100) / 100;
 
             // --- Stripe & Firebase Initialization (UPDATED for SANDBOX) ---
             // Stripe Test Public Key added here
@@ -806,6 +845,27 @@
             }
             // --- END NEW STATIC SCOREBOARD LOGIC ---
 
+            function updateChargeSummaryUI(summary) {
+                if (!chargeSummaryText) return;
+                if (!summary) {
+                    chargeSummaryText.textContent = '';
+                    if (processingFeeNote) processingFeeNote.classList.add('hidden');
+                    if (payButtonLabel) payButtonLabel.textContent = 'Pay Now';
+                    return;
+                }
+
+                const baseAmount = summary.baseAmount ?? spinTicketNumber;
+                const totalCharge = summary.totalCharge ?? baseAmount;
+                const feesTotal = cleanAmount((summary.mandatoryFees || 0) + (summary.processingFee || 0));
+                if (processingFeeNote) {
+                    processingFeeNote.classList.toggle('hidden', !summary.coverFees);
+                }
+                chargeSummaryText.textContent = `Ticket #${spinTicketNumber} base: $${cleanAmount(baseAmount).toFixed(2)} | fees: $${feesTotal.toFixed(2)} | total: $${cleanAmount(totalCharge).toFixed(2)}`;
+                if (payButtonLabel && summary.totalCharge) {
+                    payButtonLabel.textContent = `Pay $${cleanAmount(totalCharge).toFixed(2)}`;
+                }
+            }
+
             
             // --- Spin to Win Logic ---
 
@@ -830,9 +890,9 @@
                 }, 100);
             }
 
-            function stopSpinAnimationAndReveal(finalTicketNumber) {
+            function stopSpinAnimationAndReveal(finalTicketNumber, totalPaid, feesPaid, baseAmount) {
                 clearInterval(flashInterval);
-                
+
                 modalFlashingNumber.classList.remove('flashing-text'); // STOP flashing from the spin animation
                 modalFlashingNumber.textContent = finalTicketNumber;
                 modalWinningTicketNumber.textContent = `$${finalTicketNumber}.00`;
@@ -843,8 +903,10 @@
 
                 // Prepare final redirect URL
                 const name = encodeURIComponent(spinNameInput.value.trim());
-                // No referrer links are included
-                const redirectUrl = `${window.location.origin}/successful/?name=${name}&tickets=1&amount=${finalTicketNumber}`;
+                const totalAmount = cleanAmount(totalPaid || finalTicketNumber);
+                const feeAmount = cleanAmount(feesPaid || (totalAmount - finalTicketNumber));
+                const baseCharge = cleanAmount(baseAmount || finalTicketNumber);
+                const redirectUrl = `${window.location.origin}/successful/?name=${name}&tickets=1&ticketNumber=${finalTicketNumber}&amount=${baseCharge}&totalPaid=${totalAmount}&feesPaid=${feeAmount}`;
 
                 // Set timeout for final redirect after 3 seconds of blinking
                 setTimeout(() => {
@@ -889,6 +951,7 @@
                         name: spinNameInput.value.trim(),
                         email: spinEmailInput.value.trim(),
                         phone: spinPhoneInput.value.trim(),
+                        coverFees: coverFeesCheckbox && coverFeesCheckbox.checked
                     };
 
                     const response = await fetch(`${functionsBaseUrl}/createSpinPaymentIntentHttp`, {
@@ -904,12 +967,15 @@
                     }
 
                     spinTicketNumber = payload.ticketNumber;
+                    chargeSummary = payload.chargeSummary || null;
 
                     // Stripe elements initialization
                     elements = stripe.elements({ clientSecret: payload.clientSecret, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' }] });
                     const paymentElement = elements.create('payment');
                     paymentElement.mount(spinPaymentElementContainer);
-                    
+
+                    updateChargeSummaryUI(chargeSummary);
+
                     // Hide user info form, show payment element
                     initialForm.classList.add('hidden');
                     spinStripePaymentElement.classList.remove('hidden');
@@ -962,10 +1028,13 @@
                     spinStripePayButton.classList.remove('hidden');
 
                 } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+                    const paidTotal = chargeSummary?.totalCharge || cleanAmount(paymentIntent.amount / 100);
+                    const baseForSuccess = chargeSummary?.baseAmount || spinTicketNumber;
+                    const feesPaid = cleanAmount(paidTotal - baseForSuccess);
                     // Payment succeeded client-side
                     setTimeout(() => {
                         // Stop spin, reveal number, start 3s red blink, then redirect
-                        stopSpinAnimationAndReveal(spinTicketNumber);
+                        stopSpinAnimationAndReveal(spinTicketNumber, paidTotal, feesPaid, baseForSuccess);
                     }, SPIN_DURATION); // Wait 3 seconds for the spin visualization
 
                 } else {

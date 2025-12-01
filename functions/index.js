@@ -53,6 +53,28 @@ function isAdmin(context) {
     return context.auth && (context.auth.token.admin === true || context.auth.token.superAdmin === true);
 }
 
+async function verifyAdminHttpRequest(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        const error = new Error('Unauthorized. Missing or invalid Bearer token.');
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const idToken = authHeader.slice(7);
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const userRecord = await admin.auth().getUser(decodedToken.uid);
+    const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
+
+    if (!isAdminUser) {
+        const error = new Error('Forbidden. User does not have admin privileges.');
+        error.statusCode = 403;
+        throw error;
+    }
+
+    return { decodedToken, userRecord };
+}
+
 // --- USER MANAGEMENT FUNCTIONS (Kept for general admin utility) ---
 
 /**
@@ -446,7 +468,7 @@ async function createSpinPaymentIntentCore(data) {
     const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
     const TOTAL_TICKETS = 500;
 
-    const { name, email, phone } = data || {};
+    const { name, email, phone, coverFees } = data || {};
     const firstName = (name || '').split(' ')[0] || name;
 
     if (!name || !email || !phone) {
@@ -491,7 +513,11 @@ async function createSpinPaymentIntentCore(data) {
         throw new functions.https.HttpsError('resource-exhausted', 'All tickets have been claimed. Please try again later.');
     }
 
-    const amountInCents = ticketNumber * 100;
+    const baseAmount = cleanAmount(ticketNumber);
+    const mandatoryFees = cleanAmount(baseAmount * 0.02); // 1% international + 1% currency conversion
+    const processingFee = coverFees ? cleanAmount(baseAmount * 0.022 + 0.30) : 0;
+    const totalCharge = cleanAmount(baseAmount + mandatoryFees + processingFee);
+    const amountInCents = Math.round(totalCharge * 100);
 
     try {
         const paymentIntent = await stripe.paymentIntents.create({
@@ -504,14 +530,28 @@ async function createSpinPaymentIntentCore(data) {
                 email,
                 phone,
                 ticketsBought: '1',
-                baseAmount: ticketNumber.toString(),
+                baseAmount: baseAmount.toString(),
+                mandatoryFees: mandatoryFees.toString(),
+                processingFee: processingFee.toString(),
+                coverFees: coverFees ? 'true' : 'false',
+                totalCharge: totalCharge.toString(),
                 ticketNumber: ticketNumber.toString(),
                 entryType: 'spin',
                 sourceApp: SOURCE_APP_TAG,
             },
         });
 
-        return { clientSecret: paymentIntent.client_secret, ticketNumber };
+        return {
+            clientSecret: paymentIntent.client_secret,
+            ticketNumber,
+            chargeSummary: {
+                baseAmount,
+                mandatoryFees,
+                processingFee,
+                totalCharge,
+                coverFees: !!coverFees,
+            }
+        };
     } catch (error) {
         if (ticketNumber) {
             try {
@@ -653,7 +693,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
       const paymentIntent = event.data.object;
 
       // Metadata extraction
-      const { name, email, phone, ticketNumber, entryType, sourceApp } = paymentIntent.metadata;
+      const { name, email, phone, ticketNumber, entryType, sourceApp, totalCharge, baseAmount, processingFee, mandatoryFees, coverFees } = paymentIntent.metadata;
 
       const firstName = name.split(' ')[0] || name;
       const amountCharged = cleanAmount(paymentIntent.amount / 100); 
@@ -667,19 +707,25 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
             const spinTicketRef = db.collection('spin_tickets').doc(ticketNumber); 
             
             // The amountPaid field stores the base amount (ticketNumber in this case)
-            const amountForSaleRecord = cleanAmount(ticketNumber);
+            const baseSaleAmount = cleanAmount(baseAmount || ticketNumber);
+            const amountForSaleRecord = amountCharged || cleanAmount(totalCharge) || baseSaleAmount;
+            const totalFeesPaid = cleanAmount(amountForSaleRecord - baseSaleAmount);
             
-            await spinTicketRef.update({
-                status: 'paid',
-                paymentIntentId: paymentIntent.id,
-                name,
-                firstName: firstName, 
-                email,
-                phoneNumber: phone, 
-                amountPaid: amountForSaleRecord, // Store fee-excluded base amount
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
-            });
+                await spinTicketRef.update({
+                    status: 'paid',
+                    paymentIntentId: paymentIntent.id,
+                    name,
+                    firstName: firstName,
+                    email,
+                    phoneNumber: phone,
+                    amountPaid: amountForSaleRecord, // Store total collected including any fees
+                    baseAmount: baseSaleAmount,
+                    totalFeesPaid,
+                    processingFeePaid: cleanAmount(processingFee || (coverFees === 'true' ? totalFeesPaid : 0)),
+                    mandatoryFeesPaid: cleanAmount(mandatoryFees || (totalFeesPaid - (processingFee || 0))),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
+                });
 
             // Update the temporary PI status doc (if it existed) to prevent reprocessing
             // NOTE: Since the ticket itself is the primary record, we don't need a separate PI status doc here.
@@ -806,49 +852,156 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
         }
 
         try {
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                return res.status(401).json({ message: 'Unauthorized. Missing or invalid Bearer token.' });
-            }
+            await verifyAdminHttpRequest(req);
 
-            const idToken = authHeader.slice(7);
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const userRecord = await admin.auth().getUser(decodedToken.uid);
-            const isAdminUser = userRecord.customClaims && (userRecord.customClaims.admin === true || userRecord.customClaims.superAdmin === true);
+            const { name, email, phone } = req.body;
 
-            if (!isAdminUser) {
-                return res.status(403).json({ message: 'Forbidden. User does not have admin privileges.' });
-            }
-
-            const { name, email, phone, amount } = req.body;
-
-            if (!name || !email || !phone || !amount || amount < 1 || amount > 500) {
-                return res.status(400).json({ message: 'Invalid input. Please provide name, email, phone, and amount (1-500).' });
+            if (!name || !email || !phone) {
+                return res.status(400).json({ message: 'Invalid input. Please provide name, email, and phone.' });
             }
 
             const db = admin.firestore();
-            const ticketRef = db.collection('spin_tickets').doc();
-            
-            await ticketRef.set({
-                id: ticketRef.id,
-                name,
-                email,
-                phoneNumber: phone,
-                status: 'paid',
-                amountPaid: parseInt(amount),
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: 'Mi Keamcha Yisrael Admin (Manual Cash)',
-            });
+            const TOTAL_TICKETS = 500;
+            const SOURCE_APP = 'Mi Keamcha Yisrael Admin (Manual Cash)';
+            const firstName = name.split(' ')[0] || name;
 
-            return res.status(200).json({ 
-                success: true, 
-                ticketId: ticketRef.id,
-                message: `Manual ticket created successfully for ${name}.` 
+            let ticketNumber = null;
+
+            for (let i = 0; i < TOTAL_TICKETS * 2; i++) {
+                const randomTicket = Math.floor(Math.random() * TOTAL_TICKETS) + 1;
+                const ticketRef = db.collection('spin_tickets').doc(randomTicket.toString());
+
+                let assigned = false;
+
+                try {
+                    await db.runTransaction(async (transaction) => {
+                        const ticketSnap = await transaction.get(ticketRef);
+
+                        if (!ticketSnap.exists || (ticketSnap.data().status !== 'reserved' && ticketSnap.data().status !== 'paid' && ticketSnap.data().status !== 'claimed')) {
+                            transaction.set(ticketRef, {
+                                id: randomTicket.toString(),
+                                status: 'paid',
+                                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                                name,
+                                firstName,
+                                email,
+                                phoneNumber: phone,
+                                amountPaid: cleanAmount(randomTicket),
+                                baseAmount: cleanAmount(randomTicket),
+                                totalFeesPaid: 0,
+                                processingFeePaid: 0,
+                                mandatoryFeesPaid: 0,
+                                sourceApp: SOURCE_APP,
+                            }, { merge: true });
+                            assigned = true;
+                        }
+                    });
+
+                    if (assigned) {
+                        ticketNumber = randomTicket;
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Transaction failed when assigning manual ticket:', error);
+                }
+            }
+
+            if (!ticketNumber) {
+                return res.status(409).json({ message: 'Unable to assign a ticket. All tickets may be claimed.' });
+            }
+
+            return res.status(200).json({
+                success: true,
+                ticketId: ticketNumber.toString(),
+                ticketNumber: ticketNumber,
+                message: `Manual ticket #${ticketNumber} created successfully for ${name}.`
             });
 
         } catch (error) {
             console.error('Error adding manual ticket:', error);
             return res.status(500).json({ message: 'Failed to add manual ticket.', error: error.message });
+        }
+    });
+});
+
+exports.deleteTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'DELETE') {
+            return res.status(405).send({ message: 'Method Not Allowed. Use DELETE.' });
+        }
+
+        try {
+            await verifyAdminHttpRequest(req);
+
+            const { ticketId } = req.body || {};
+            if (!ticketId) {
+                return res.status(400).json({ message: 'Missing ticketId.' });
+            }
+
+            const db = admin.firestore();
+            await db.collection('spin_tickets').doc(ticketId.toString()).delete();
+
+            return res.status(200).json({ success: true, message: `Ticket #${ticketId} deleted.` });
+        } catch (error) {
+            const status = error.statusCode || 500;
+            console.error('Error deleting ticket:', error);
+            return res.status(status).json({ message: error.message || 'Failed to delete ticket.' });
+        }
+    });
+});
+
+exports.refundTicketPaymentHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send({ message: 'Method Not Allowed. Use POST.' });
+        }
+
+        try {
+            const { userRecord } = await verifyAdminHttpRequest(req);
+            const { ticketId } = req.body || {};
+
+            if (!ticketId) {
+                return res.status(400).json({ message: 'Missing ticketId.' });
+            }
+
+            const db = admin.firestore();
+            const ticketRef = db.collection('spin_tickets').doc(ticketId.toString());
+            const ticketSnap = await ticketRef.get();
+
+            if (!ticketSnap.exists) {
+                return res.status(404).json({ message: `Ticket #${ticketId} not found.` });
+            }
+
+            const ticketData = ticketSnap.data();
+            const paymentIntentId = ticketData.paymentIntentId;
+
+            if (!paymentIntentId) {
+                return res.status(400).json({ message: `Ticket #${ticketId} does not have a Stripe payment to refund.` });
+            }
+
+            if (ticketData.status === 'refunded') {
+                return res.status(400).json({ message: `Ticket #${ticketId} was already refunded.` });
+            }
+
+            const refund = await stripe.refunds.create({ payment_intent: paymentIntentId });
+
+            await ticketRef.set({
+                status: 'refunded',
+                refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+                refundId: refund.id,
+                amountRefunded: cleanAmount(refund.amount / 100),
+                refundRequestedBy: userRecord.email || userRecord.uid,
+            }, { merge: true });
+
+            return res.status(200).json({
+                success: true,
+                message: `Refund issued for ticket #${ticketId}.`,
+                refundId: refund.id,
+            });
+        } catch (error) {
+            const status = error.statusCode || 500;
+            console.error('Error issuing refund:', error);
+            return res.status(status).json({ message: error.message || 'Failed to process refund.' });
         }
     });
 });
