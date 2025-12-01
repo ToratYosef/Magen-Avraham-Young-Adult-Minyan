@@ -21,12 +21,12 @@
                 extend: {
                     colors: {
                         // Logo Colors
-                        'ma-navy': '#1B325F',
-                        'ma-gold': '#B89A5F',
+                        'ma-navy': '#0A0E27',
+                        'ma-gold': '#C9A961',
                         // Darker shade for gradient start
-                        'ma-dark': '#101D38', 
+                        'ma-dark': '#050810', 
                         // Complementary dark for inner panels/cards
-                        'ma-slate': '#2B3141', 
+                        'ma-slate': '#0F1527', 
                     }
                 }
             }
@@ -38,21 +38,21 @@
         .bebas-neue { font-family: 'Bebas Neue', sans-serif; }
         
         body {
-            background-color: #101D38;
-            background-image: linear-gradient(135deg, #101D38 0%, #1B325F 100%);
+            background-color: #050810;
+            background-image: linear-gradient(135deg, #050810 0%, #0A0E27 100%);
         }
         
         /* Style for the main container on the dashboard */
         .dashboard-panel {
-            background: rgba(43, 49, 63, 0.4); 
+            background: rgba(15, 21, 39, 0.4); 
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border: 4px solid #B89A5F; 
+            border: 4px solid #C9A961; 
             box-shadow: 
                 0 0 15px rgba(255, 255, 255, 0.4),  
                 0 0 30px rgba(255, 255, 255, 0.1),  
-                0 0 45px 5px #B89A5F,              
-                0 0 70px 15px #B89A5F80;          
+                0 0 45px 5px #C9A961,              
+                0 0 70px 15px #C9A96180;          
         }
 
         /* Fixed height and scrolling for the table on small screens */
@@ -65,8 +65,8 @@
 
         /* Table specific styles for spreadsheet look */
         #ticketsTable th {
-            background-color: #1B325F; /* ma-navy */
-            color: #B89A5F; /* ma-gold */
+            background-color: #0A0E27; /* ma-navy */
+            color: #C9A961; /* ma-gold */
             position: sticky;
             top: 0;
             z-index: 10;
@@ -88,6 +88,17 @@
     </style>
 </head>
 <body class="text-white min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-black/40 py-4 px-4 md:px-12 w-full z-50 shadow-2xl backdrop-blur-sm border-b border-ma-gold/20">
+        <nav class="container mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center space-x-3">
+                <img src="/assets/logo.png" alt="Mi Keamcha Yisrael Logo" class="h-12 md:h-14 w-auto rounded-full ring-2 ring-ma-gold p-1">
+                <span class="bebas-neue text-xl md:text-2xl tracking-wider text-white">MI KEAMCHA YISRAEL</span>
+            </a>
+            <a href="/" class="py-2 px-5 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors duration-300">Back to Home</a>
+        </nav>
+    </header>
 
     <main id="app-container" class="flex-grow flex items-center justify-center p-4">
         
@@ -150,6 +161,12 @@
                     <button id="manual-spin-button" class="w-full py-2 px-4 rounded-full bg-purple-600 text-white font-bold hover:bg-purple-700 transition-colors duration-300 text-sm sm:text-base">
                         Manual Spin
                     </button>
+                    <button id="email-drawing-soon-button" class="w-full py-2 px-4 rounded-full bg-yellow-600 text-white font-bold hover:bg-yellow-700 transition-colors duration-300 text-sm sm:text-base">
+                        📧 Email: Drawing Soon
+                    </button>
+                    <button id="email-tickets-running-out-button" class="w-full py-2 px-4 rounded-full bg-orange-600 text-white font-bold hover:bg-orange-700 transition-colors duration-300 text-sm sm:text-base">
+                        ⚠️ Email: Tickets Running Out
+                    </button>
                 </div>
             </div>
 
@@ -163,8 +180,9 @@
                             <th class="p-3" data-sort-key="name">Purchaser Name<span class="sort-icon"></span></th>
                             <th class="p-3" data-sort-key="email">Email<span class="sort-icon"></span></th>
                             <th class="p-3" data-sort-key="phoneNumber">Phone<span class="sort-icon"></span></th>
-                            <th class="p-3" data-sort-key="amountPaid">Amount Paid<span class="sort-icon"></span></th>
+                            <th class="p-3" data-sort-key="amountPaid">Amount<span class="sort-icon"></span></th>
                             <th class="p-3" data-sort-key="timestamp">Timestamp<span class="sort-icon"></span></th>
+                            <th class="p-3">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="tickets-table-body">
@@ -175,15 +193,39 @@
         </div>
 
     </main>
-    <footer class="bg-black/40 py-6 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
-        <div class="container mx-auto px-4 text-center">
-            <p class="text-sm text-gray-500 mb-1">
-                &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.
-            </p>
-            <p class="text-sm text-gray-500">
-                Website created by 
-                <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a>
-            </p>
+    
+    <!-- Footer -->
+    <footer class="bg-black/40 py-8 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)] backdrop-blur-sm border-t border-ma-gold/20">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+                <div class="text-center md:text-left">
+                    <h3 class="text-ma-gold font-bold mb-2">Mi Keamcha Yisrael</h3>
+                    <p class="text-sm text-gray-400">Supporting our community through charitable initiatives.</p>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-ma-gold font-bold mb-2">Quick Links</h3>
+                    <ul class="text-sm text-gray-400 space-y-1">
+                        <li><a href="/" class="hover:text-ma-gold transition-colors">Home</a></li>
+                        <li><a href="/terms.html" class="hover:text-ma-gold transition-colors">Terms of Service</a></li>
+                        <li><a href="/privacy.html" class="hover:text-ma-gold transition-colors">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div class="text-center md:text-right">
+                    <h3 class="text-ma-gold font-bold mb-2">Contact</h3>
+                    <p class="text-sm text-gray-400">
+                        <a href="sms:9295845753" class="hover:text-ma-gold transition-colors">Text: 929-584-5753</a>
+                    </p>
+                </div>
+            </div>
+            <div class="border-t border-ma-gold/20 pt-4 text-center">
+                <p class="text-sm text-gray-500 mb-1">
+                    &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.
+                </p>
+                <p class="text-sm text-gray-500">
+                    Website created by 
+                    <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a>
+                </p>
+            </div>
         </div>
     </footer>
     <!-- Firebase Scripts -->
@@ -247,7 +289,7 @@
                 <input type="tel" id="manual-phone" placeholder="Phone" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
                 <p class="text-sm text-gray-300">Ticket number and amount will be assigned automatically.</p>
                 <button id="submitManualSpinButton" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">
-                    Add to Wheel & Spin
+                    Create Ticket - Waiting for Payment
                 </button>
             </div>
         </div>
@@ -383,7 +425,7 @@
 
             ticketData.forEach(ticket => {
                 // Ensure amountPaid is stored as a number for reliable math
-                const amount = parseFloat(ticket.amountPaid || ticket.baseAmount || 0);
+                const amount = parseFloat(ticket.amountPaid || ticket.amountDue || ticket.baseAmount || 0);
 
                 if (ticket.status === 'paid' || ticket.status === 'claimed') {
                     ticketsSold++;
@@ -399,6 +441,8 @@
                     rowBgClass = 'bg-ma-slate/70';
                 } else if (ticket.status === 'reserved') {
                     rowBgClass = 'bg-ma-gold/20'; 
+                } else if (ticket.status === 'waiting_for_payment') {
+                    rowBgClass = 'bg-orange-900/30';
                 } else {
                     rowBgClass = 'bg-red-900/50';
                 }
@@ -407,26 +451,72 @@
                 
                 const statusTextColor = 
                     ticket.status === 'paid' ? 'text-green-400' : 
-                    ticket.status === 'reserved' ? 'text-yellow-400' : 'text-red-400';
+                    ticket.status === 'reserved' ? 'text-yellow-400' :
+                    ticket.status === 'waiting_for_payment' ? 'text-orange-400' : 'text-red-400';
 
-                const paidAmount = formatAmount(amount);
+                const displayAmount = ticket.status === 'waiting_for_payment' ? 
+                    `${formatAmount(amount)} (DUE)` : formatAmount(amount);
                 const purchaseTimestamp = formatTimestamp(ticket.timestamp);
+
+                const actionButton = ticket.status === 'waiting_for_payment' ?
+                    `<button class="mark-paid-btn px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors" data-ticket-id="${ticket.id}">Mark Paid</button>` :
+                    '-';
 
                 row.innerHTML = `
                     <td class="font-bold text-lg text-ma-gold">${ticket.id}</td>
-                    <td class="${statusTextColor} font-semibold">${ticket.status.toUpperCase()}</td>
+                    <td class="${statusTextColor} font-semibold">${ticket.status.replace('_', ' ').toUpperCase()}</td>
                     <td>${ticket.name || 'N/A'}</td>
                     <td class="text-xs">${ticket.email || 'N/A'}</td>
                     <td class="text-xs">${ticket.phoneNumber || 'N/A'}</td>
-                    <td>${paidAmount}</td>
+                    <td>${displayAmount}</td>
                     <td class="text-gray-400 text-xs">${purchaseTimestamp}</td>
+                    <td>${actionButton}</td>
                 `;
+            });
+
+            // Add event listeners to all "Mark Paid" buttons
+            document.querySelectorAll('.mark-paid-btn').forEach(btn => {
+                btn.addEventListener('click', markTicketAsPaid);
             });
 
             // Update stats bar
             totalTicketsDisplay.textContent = `${ticketsSold}/${TOTAL_TICKETS}`;
             totalRevenueDisplay.textContent = formatAmount(totalRevenue);
             reservedTicketsDisplay.textContent = reservedCount.toString();
+        }
+        
+        // --- Mark Ticket as Paid ---
+        async function markTicketAsPaid(event) {
+            const ticketId = event.target.getAttribute('data-ticket-id');
+            
+            if (!confirm(`Mark ticket #${ticketId} as PAID?`)) {
+                return;
+            }
+
+            try {
+                const ticketRef = db.collection('spin_tickets').doc(ticketId);
+                const ticketSnap = await ticketRef.get();
+                
+                if (!ticketSnap.exists) {
+                    alert('Ticket not found');
+                    return;
+                }
+
+                const ticketData = ticketSnap.data();
+                const amountDue = ticketData.amountDue || parseFloat(ticketId);
+
+                await ticketRef.update({
+                    status: 'paid',
+                    amountPaid: amountDue,
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert(`Ticket #${ticketId} marked as PAID ($${amountDue.toFixed(2)})`);
+            } catch (error) {
+                console.error('Error marking ticket as paid:', error);
+                alert(`Failed to mark ticket as paid: ${error.message}`);
+            }
         }
         
         // --- Event Listeners ---
@@ -660,14 +750,15 @@
                     throw new Error(data.message || 'Failed to add manual ticket');
                 }
 
-                // Close modal and refresh data
+                // Close modal and clear form
                 document.getElementById('manualSpinModal').classList.add('hidden');
                 document.getElementById('manual-name').value = '';
                 document.getElementById('manual-email').value = '';
                 document.getElementById('manual-phone').value = '';
 
                 const assignedTicket = data.ticketNumber || data.ticketId;
-                alert(`Manual ticket #${assignedTicket} created and marked as paid.`);
+                const amountDue = data.amountDue || assignedTicket;
+                alert(`Ticket #${assignedTicket} created!\n\nAmount to collect: $${amountDue.toFixed(2)}\n\nStatus: Waiting for Payment\n\nYou can mark it as paid in the table below.`);
             } catch (error) {
                 alert(`Error: ${error.message}`);
             }
