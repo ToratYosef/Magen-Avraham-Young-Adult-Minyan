@@ -1,6 +1,9 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const cors = require('cors'); 
+const nodemailer = require('nodemailer');
+const express = require('express');
+const bodyParser = require('body-parser');
 require('dotenv').config();
 
 // IMPORTANT: Initialize the Firebase Admin SDK
@@ -24,6 +27,267 @@ const stripe = require('stripe')(stripeSecretKey);
 const corsHandler = cors({
     origin: true,
 });
+
+// --- NODEMAILER CONFIGURATION ---
+const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
+// --- EMAIL TEMPLATES ---
+
+/**
+ * Generates styled HTML email with site branding
+ */
+function getEmailTemplate(title, content) {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #050810 0%, #0A0E27 100%);
+            color: #ffffff;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(15, 21, 39, 0.95);
+            border: 2px solid rgba(201, 169, 97, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .header {
+            background: rgba(10, 14, 39, 0.9);
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 2px solid rgba(201, 169, 97, 0.3);
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            border: 2px solid #C9A961;
+            padding: 5px;
+            background: #0A0E27;
+        }
+        .title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 32px;
+            color: #C9A961;
+            margin: 0;
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #9CA3AF;
+            margin: 5px 0 0;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .highlight-box {
+            background: rgba(201, 169, 97, 0.1);
+            border: 2px solid rgba(201, 169, 97, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .ticket-number {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 48px;
+            color: #C9A961;
+            margin: 10px 0;
+            text-shadow: 0 0 20px rgba(201, 169, 97, 0.4);
+        }
+        .amount {
+            font-size: 36px;
+            font-weight: bold;
+            color: #C9A961;
+        }
+        .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #9CA3AF;
+            margin-bottom: 8px;
+        }
+        .info-row {
+            margin: 15px 0;
+            padding: 12px;
+            background: rgba(5, 8, 16, 0.5);
+            border-radius: 8px;
+        }
+        .button {
+            display: inline-block;
+            padding: 15px 35px;
+            background: #C9A961;
+            color: #0A0E27;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            margin: 20px 0;
+            box-shadow: 0 0 20px rgba(201, 169, 97, 0.3);
+        }
+        .footer {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            text-align: center;
+            border-top: 1px solid rgba(201, 169, 97, 0.2);
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+        .footer a {
+            color: #C9A961;
+            text-decoration: none;
+        }
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(201, 169, 97, 0.3), transparent);
+            margin: 25px 0;
+        }
+        h2 {
+            color: #C9A961;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            letter-spacing: 1.5px;
+        }
+        p {
+            line-height: 1.6;
+            color: #D1D5DB;
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.png" alt="Mi Keamcha Yisrael" class="logo">
+            <h1 class="title">MI KEAMCHA YISRAEL</h1>
+            <p class="subtitle">${title}</p>
+        </div>
+        <div class="content">
+            ${content}
+        </div>
+        <div class="footer">
+            <p><strong>Mi Keamcha Yisrael</strong><br>
+            Supporting our community through charitable initiatives</p>
+            <p style="margin-top: 15px;">
+                <a href="https://mi-keamcha-yisrael.web.app">Home</a> | 
+                <a href="https://mi-keamcha-yisrael.web.app/terms.html">Terms</a> | 
+                <a href="https://mi-keamcha-yisrael.web.app/privacy.html">Privacy</a>
+            </p>
+            <p style="margin-top: 10px; font-size: 11px;">
+                &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.<br>
+                Questions? Text us at <a href="sms:9295845753">929-584-5753</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+}
+
+/**
+ * Sends a tax-deductible receipt email
+ */
+async function sendReceiptEmail(recipientEmail, recipientName, ticketNumber, amount, paymentMethod = 'card') {
+    const content = `
+        <p>Dear ${recipientName},</p>
+        <p>Thank you for your generous contribution to Mi Keamcha Yisrael!</p>
+        
+        <div class="highlight-box">
+            <p class="label">Your Ticket Number</p>
+            <p class="ticket-number">#${ticketNumber}</p>
+            <div class="divider"></div>
+            <p class="label">Amount Paid</p>
+            <p class="amount">$${amount.toFixed(2)}</p>
+        </div>
+
+        <h2>Donation Details</h2>
+        <div class="info-row">
+            <strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })}
+        </div>
+        <div class="info-row">
+            <strong>Payment Method:</strong> ${paymentMethod === 'cash' ? 'Cash/Check' : 'Credit Card'}
+        </div>
+        <div class="info-row">
+            <strong>Ticket Number:</strong> #${ticketNumber}
+        </div>
+
+        <div class="divider"></div>
+
+        <h2>Tax Information</h2>
+        <p>Your donation is tax-deductible to the extent allowed by law. <strong>No goods or services were provided in exchange for this contribution.</strong></p>
+        
+        <p style="font-size: 14px; margin-top: 20px;">
+            <strong>Organization Information:</strong><br>
+            Mi Keamcha Yisrael<br>
+            Brooklyn, NY<br>
+            EIN: [Your EIN Number Here]
+        </p>
+
+        <p style="margin-top: 25px; padding: 15px; background: rgba(201, 169, 97, 0.1); border-radius: 8px; border-left: 4px solid #C9A961;">
+            <strong>Please keep this email for your tax records.</strong>
+        </p>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="https://mi-keamcha-yisrael.web.app" class="button">View Raffle Details</a>
+        </div>
+
+        <p style="margin-top: 30px; text-align: center; color: #9CA3AF;">
+            Good luck in the drawing! 🎉
+        </p>
+    `;
+
+    const mailOptions = {
+        from: process.env.EMAIL_FROM || '"Mi Keamcha Yisrael" <sales@secondhandcell.com>',
+        to: recipientEmail,
+        subject: `Tax-Deductible Receipt – Ticket #${ticketNumber} ($${amount.toFixed(2)})`,
+        html: getEmailTemplate('Tax-Deductible Donation Receipt', content),
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Receipt email sent to ${recipientEmail} for ticket #${ticketNumber}`);
+}
+
+/**
+ * Saves email to Firestore emails collection
+ */
+async function saveEmailToCollection(email, name) {
+    const db = admin.firestore();
+    try {
+        await db.collection('emails').doc(email).set({
+            email: email,
+            name: name,
+            addedAt: admin.firestore.FieldValue.serverTimestamp(),
+            subscribed: true,
+        }, { merge: true });
+        console.log(`✅ Email ${email} saved to collection`);
+    } catch (error) {
+        console.error('Error saving email to collection:', error);
+    }
+}
+
 
 // --- Utility Functions ---
 
@@ -797,7 +1061,8 @@ exports.setSuperAdminClaim = functions.runWith({ runtime: 'nodejs20' }).https.on
 
 /**
  * HTTP Endpoint to add a manual cash payment ticket
- * Admin can manually add a ticket for cash payments and immediately mark as paid
+ * Admin can manually add a ticket with "waiting for payment" status
+ * Admin can later mark them as paid in the dashboard
  */
 exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
@@ -843,16 +1108,19 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
                     await db.runTransaction(async (transaction) => {
                         const ticketSnap = await transaction.get(ticketRef);
 
-                        if (!ticketSnap.exists || (ticketSnap.data().status !== 'reserved' && ticketSnap.data().status !== 'paid' && ticketSnap.data().status !== 'claimed')) {
+                        if (!ticketSnap.exists || (ticketSnap.data().status !== 'reserved' && ticketSnap.data().status !== 'paid' && ticketSnap.data().status !== 'claimed' && ticketSnap.data().status !== 'waiting_for_payment')) {
+                            const amount = cleanAmount(randomTicket);
+                            
                             transaction.set(ticketRef, {
                                 id: randomTicket.toString(),
-                                status: 'paid',
+                                status: 'waiting_for_payment',
                                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                                 name,
                                 firstName,
                                 email,
                                 phoneNumber: phone,
-                                amountPaid: cleanAmount(randomTicket),
+                                amountDue: amount,
+                                paymentMethod: 'cash',
                                 sourceApp: SOURCE_APP,
                             }, { merge: true });
                             assigned = true;
@@ -872,11 +1140,14 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
                 return res.status(409).json({ message: 'Unable to assign a ticket. All tickets may be claimed.' });
             }
 
+            const amountDue = cleanAmount(ticketNumber);
+
             return res.status(200).json({
                 success: true,
                 ticketId: ticketNumber.toString(),
                 ticketNumber: ticketNumber,
-                message: `Manual ticket #${ticketNumber} created successfully for ${name}.`
+                amountDue: amountDue,
+                message: `Manual ticket #${ticketNumber} created with amount $${amountDue.toFixed(2)} - waiting for payment.`
             });
 
         } catch (error) {
