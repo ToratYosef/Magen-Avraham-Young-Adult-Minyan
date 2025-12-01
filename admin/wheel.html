@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – Live Wheel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { 'ma-navy': '#0A0E27','ma-gold': '#C9A961','ma-dark': '#050810','ma-slate': '#0F1527' } } } };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background-color:#050810; background-image: linear-gradient(135deg, #050810 0%, #0A0E27 100%); overflow-x:hidden; }
+    body::before, body::after { content:''; position:fixed; inset:0; pointer-events:none; z-index:-1; }
+    body::before { background: radial-gradient(circle at 20% 20%, rgba(184, 154, 95, 0.15), transparent 50%), radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.08), transparent 55%), radial-gradient(circle at 15% 75%, rgba(184, 154, 95, 0.12), transparent 55%), radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.06), transparent 60%); filter: blur(0.4px); }
+    body::after { background-image:url('data:image/svg+xml,%3Csvg width="180" height="180" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"%3E%3Ccircle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.08)"/%3E%3Ccircle cx="50" cy="60" r="1" fill="rgba(184,154,95,0.08)"/%3E%3Ccircle cx="90" cy="25" r="1" fill="rgba(255,255,255,0.08)"/%3E%3Ccircle cx="40" cy="15" r="1" fill="rgba(184,154,95,0.08)"/%3E%3Ccircle cx="70" cy="85" r="1" fill="rgba(255,255,255,0.08)"/%3E%3C/svg%3E'); opacity:0.45; }
+    .wheel { width: 240px; height: 240px; border-radius: 50%; border: 6px solid #C9A961; box-shadow: 0 0 30px rgba(201,169,97,0.35); position: relative; overflow: hidden; }
+    .slice { position: absolute; width: 50%; height: 50%; transform-origin: 100% 100%; top: 50%; left: 50%; }
+    .indicator { width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-bottom: 18px solid #C9A961; margin: 0 auto; }
+  </style>
+</head>
+<body class="text-white min-h-screen flex flex-col">
+  <header class="bg-black/40 py-4 px-4 md:px-12 fixed w-full top-0 z-50 shadow-2xl backdrop-blur-sm">
+    <nav class="container mx-auto flex justify-between items-center">
+      <a href="/admin/" class="flex items-center space-x-3">
+        <img src="/assets/logo.png" class="h-12 md:h-14 w-auto rounded-full ring-2 ring-ma-gold p-1" alt="Logo">
+        <span class="bebas-neue text-xl md:text-2xl tracking-wider text-white">ADMIN – WHEEL</span>
+      </a>
+      <a href="/wheel/" class="py-2 px-5 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">View Public Wheel</a>
+    </nav>
+  </header>
+  <main class="flex-grow pt-28 px-4">
+    <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+      <div class="glass-panel p-6 rounded-2xl border border-ma-gold/30">
+        <div class="text-center mb-4">
+          <div class="indicator" style="transform: rotate(180deg);"></div>
+        </div>
+        <div id="wheel" class="wheel mx-auto"></div>
+        <p id="status" class="text-center mt-6 text-gray-300"></p>
+        <div class="flex gap-3 mt-4 justify-center flex-wrap">
+          <button id="buildWheel" class="py-2 px-5 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80">Build Wheel (Paid Tickets)</button>
+          <button id="broadcastSpin" class="py-2 px-5 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80">Broadcast Spin</button>
+          <button id="resetWheel" class="py-2 px-5 rounded-full border border-ma-gold text-ma-gold font-bold hover:bg-ma-gold/20">Reset</button>
+        </div>
+      </div>
+      <div class="glass-panel p-6 rounded-2xl border border-ma-gold/30">
+        <h3 class="text-ma-gold font-bold mb-3">Manage Participants</h3>
+        <form id="addForm" class="flex gap-2 mb-4">
+          <input id="nameInput" type="text" placeholder="Add name" class="flex-1 px-3 py-2 rounded bg-black/40 border border-ma-gold/30 text-white" />
+          <input id="ticketInput" type="text" placeholder="Ticket # (optional)" class="w-40 px-3 py-2 rounded bg-black/40 border border-ma-gold/30 text-white" />
+          <button class="py-2 px-4 rounded-full bg-ma-gold text-ma-navy font-bold">Add</button>
+        </form>
+        <ul id="participants" class="space-y-2"></ul>
+      </div>
+    </div>
+  </main>
+  <footer class="bg-black/40 py-8 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)] backdrop-blur-sm border-t border-ma-gold/20">
+    <div class="container mx-auto px-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+        <div class="text-center md:text-left">
+          <h3 class="text-ma-gold font-bold mb-2">Mi Keamcha Yisrael</h3>
+          <p class="text-sm text-gray-400">Supporting our community through charitable initiatives.</p>
+        </div>
+        <div class="text-center">
+          <h3 class="text-ma-gold font-bold mb-2">Quick Links</h3>
+          <ul class="text-sm text-gray-400 space-y-1">
+            <li><a href="/" class="hover:text-ma-gold transition-colors">Home</a></li>
+            <li><a href="/terms.html" class="hover:text-ma-gold transition-colors">Terms of Service</a></li>
+            <li><a href="/privacy.html" class="hover:text-ma-gold transition-colors">Privacy Policy</a></li>
+          </ul>
+        </div>
+        <div class="text-center md:text-right">
+          <h3 class="text-ma-gold font-bold mb-2">Contact</h3>
+          <p class="text-sm text-gray-400">
+            <a href="sms:9295845753" class="hover:text-ma-gold transition-colors">Text: 929-584-5753</a>
+          </p>
+        </div>
+      </div>
+      <div class="border-t border-ma-gold/20 pt-4 text-center">
+        <p class="text-sm text-gray-500 mb-1">&copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.</p>
+        <p class="text-sm text-gray-500">Website created by <a href="sms:9295845753" class="text-ma-gold hover:text-ma-gold/80 transition-colors">Saul Setton</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyApFDhSZhG46VrfgrR7l-PnZNF_b1k3xlY",
+      authDomain: "mi-keamcha-yisrael.firebaseapp.com",
+      projectId: "mi-keamcha-yisrael",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const wheelEl = document.getElementById('wheel');
+    const participantsEl = document.getElementById('participants');
+    const statusEl = document.getElementById('status');
+    const nameInput = document.getElementById('nameInput');
+    const addForm = document.getElementById('addForm');
+    const broadcastBtn = document.getElementById('broadcastSpin');
+    const resetBtn = document.getElementById('resetWheel');
+
+    function renderWheel(names = [], winnerIndex = null, spinning = false) {
+      const count = Math.max(1, names.length);
+      // Color palette: replace with the screenshot palette if available
+      const colors = ['#264653','#2a9d8f','#e9c46a','#f4a261','#e76f51','#6d597a','#355070','#b56576','#e56b6f','#eaac8b'];
+
+      // Build conic-gradient background for clean slices
+      let gradientStops = [];
+      for (let i = 0; i < count; i++) {
+        const start = (i / count) * 100;
+        const end = ((i + 1) / count) * 100;
+        const color = colors[i % colors.length];
+        gradientStops.push(`${color} ${start}% ${end}%`);
+      }
+      wheelEl.style.background = `conic-gradient(${gradientStops.join(',')})`;
+
+      // Clear and add labels positioned around the wheel edge
+      wheelEl.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const angleStart = (360 / count) * i;
+        const angleMid = angleStart + (360 / count) / 2;
+        const label = document.createElement('div');
+        label.style.position = 'absolute';
+        label.style.top = '50%';
+        label.style.left = '50%';
+        // Place text following slice direction (left thick → right thin visual)
+        label.style.transform = `rotate(${angleMid}deg) translate(58px) rotate(-${angleMid}deg)`;
+        label.style.maxWidth = '120px';
+        label.style.overflow = 'hidden';
+        label.style.textOverflow = 'ellipsis';
+        label.style.transformOrigin = '0 0';
+        label.style.fontSize = '12px';
+        label.style.color = '#ffffff';
+        label.style.whiteSpace = 'nowrap';
+        label.style.textShadow = '0 1px 2px rgba(0,0,0,0.6)';
+        const p = names[i];
+        const display = typeof p === 'object' ? `Ticket #${p.ticket || '?'}: ${p.name}` : (p || 'Waiting...');
+        label.textContent = display;
+        wheelEl.appendChild(label);
+      }
+
+      // Only show winner after spin stops
+      if (!spinning && winnerIndex != null && names[winnerIndex]) {
+        statusEl.textContent = `Winner: ${names[winnerIndex]}`;
+      } else if (spinning) {
+        statusEl.textContent = 'Spinning...';
+      } else {
+        statusEl.textContent = 'Ready to broadcast spin...';
+      }
+    }
+
+    function renderParticipants(names = []) {
+      participantsEl.innerHTML = '';
+      names.forEach((n, idx) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between bg-black/40 border border-ma-gold/20 rounded px-3 py-2';
+        const labelText = typeof n === 'object' ? `Ticket #${n.ticket || '?'}: ${n.name}` : n;
+        li.innerHTML = `<span>${labelText}</span>`;
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.className = 'text-red-400 hover:text-red-300';
+        delBtn.addEventListener('click', async () => {
+          const doc = await db.collection('wheel').doc('current').get();
+          const data = doc.data() || {};
+          const arr = (data.participants || []).filter((_, i) => i !== idx);
+          await db.collection('wheel').doc('current').set({ participants: arr }, { merge: true });
+        });
+        li.appendChild(delBtn);
+        participantsEl.appendChild(li);
+      });
+    }
+
+    db.collection('wheel').doc('current').onSnapshot(doc => {
+      const data = doc.exists ? doc.data() : {};
+      const names = data.participants || [];
+      const winnerIndex = typeof data.winnerIndex === 'number' ? data.winnerIndex : null;
+      const spinning = !!data.spinning;
+      renderParticipants(names);
+      renderWheel(names, winnerIndex, spinning);
+      if (spinning && data.spinRotation) {
+        wheelEl.style.transition = 'transform 4s cubic-bezier(0.23, 1, 0.32, 1)';
+        wheelEl.style.transform = `rotate(${data.spinRotation}deg)`;
+      } else {
+        wheelEl.style.transition = 'none';
+        wheelEl.style.transform = 'rotate(0deg)';
+      }
+      // Winner modal persistence for admin view too
+      const modalOpen = !!data.winnerModalOpen;
+      const winnerName = data.winnerName || null;
+      const winnerTicket = data.winnerTicket || null;
+      if (modalOpen && (winnerName || winnerIndex != null)) {
+        // Only show modal if the winner is in the current participants list
+        let present = false;
+        let wName = winnerName;
+        let wTicket = winnerTicket;
+        if (winnerIndex != null && names[winnerIndex]) {
+          const w = names[winnerIndex];
+          wName = typeof w === 'object' ? w.name : w;
+          wTicket = typeof w === 'object' ? (w.ticket || null) : null;
+          present = true;
+        } else if (winnerName) {
+          present = names.some(n => (typeof n === 'object' ? n.name : n) === winnerName);
+        }
+        if (present) {
+          showWinnerModal(wName, wTicket);
+        }
+      }
+    });
+
+    // Winner Modal
+    const modalHtml = `
+      <div id="winnerModalOverlay" class="fixed inset-0 z-[200] bg-black/75 flex items-center justify-center p-4 hidden">
+        <div class="bg-ma-slate p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-ma-gold/40">
+          <h2 class="bebas-neue text-3xl font-bold text-ma-gold mb-3">Winner!</h2>
+          <p id="winnerModalText" class="text-gray-200 text-lg mb-5"></p>
+          <button id="winnerModalClose" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">OK</button>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const winnerModalOverlay = document.getElementById('winnerModalOverlay');
+    const winnerModalText = document.getElementById('winnerModalText');
+    const winnerModalClose = document.getElementById('winnerModalClose');
+    winnerModalClose.addEventListener('click', () => { winnerModalOverlay.classList.add('hidden'); });
+    function showWinnerModal(name, ticket) {
+      const text = `${name}${ticket ? ` (Ticket #${ticket})` : ''}`;
+      winnerModalText.textContent = text;
+      winnerModalOverlay.classList.remove('hidden');
+    }
+
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      const ticket = ticketInput.value.trim();
+      if (!name) return;
+      const doc = await db.collection('wheel').doc('current').get();
+      const data = doc.data() || {};
+      const arr = data.participants || [];
+      arr.push(ticket ? { name, ticket } : { name });
+      await db.collection('wheel').doc('current').set({ participants: arr }, { merge: true });
+      nameInput.value = '';
+      ticketInput.value = '';
+    });
+
+    broadcastBtn.addEventListener('click', async () => {
+      const doc = await db.collection('wheel').doc('current').get();
+      const data = doc.data() || {};
+      const names = data.participants || [];
+      if (!names.length) return;
+      // Deterministic spin: compute a winner index and exact rotation to align slice center with top indicator (arrow down)
+      const seed = Date.now();
+      const winnerIndex = seed % names.length;
+      const sliceAngle = 360 / names.length;
+      const targetAngle = sliceAngle * winnerIndex + sliceAngle / 2; // center of winner slice
+      const fullSpins = 6 * 360; // spin 6 turns for show
+      const rotations = fullSpins + targetAngle;
+      const winner = names[winnerIndex];
+      const winnerName = typeof winner === 'object' ? winner.name : winner;
+      const winnerTicket = typeof winner === 'object' ? (winner.ticket || null) : null;
+      await db.collection('wheel').doc('current').set({
+        spinning: true,
+        spinRotation: rotations,
+        winnerIndex,
+        seed,
+        winnerModalOpen: false,
+        winnerName,
+        winnerTicket,
+      }, { merge: true });
+      setTimeout(async () => {
+        await db.collection('wheel').doc('current').set({ spinning: false, winnerModalOpen: true }, { merge: true });
+      }, 4200);
+    });
+
+    // Build Wheel from Firestore paid tickets
+    document.getElementById('buildWheel').addEventListener('click', async () => {
+      try {
+        const snap = await db.collection('spin_tickets').where('status', 'in', ['paid','claimed']).get();
+        let participants = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          const ticketNum = parseInt(doc.id, 10);
+          const name = d.name || d.firstName || 'Unknown';
+          if (!isNaN(ticketNum)) {
+            participants.push({ name, ticket: ticketNum });
+          }
+        });
+        participants.sort((a,b) => (a.ticket||0) - (b.ticket||0));
+        await db.collection('wheel').doc('current').set({ participants }, { merge: true });
+      } catch (err) {
+        console.error('Error building wheel from Firestore:', err);
+      }
+    });
+
+    resetBtn.addEventListener('click', async () => {
+      await db.collection('wheel').doc('current').set({ spinning: false, winnerIndex: null, spinRotation: 0, participants: [], winnerModalOpen: false, winnerName: null, winnerTicket: null }, { merge: true });
+    });
+  </script>
+</body>
+</html>

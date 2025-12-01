@@ -877,14 +877,14 @@
                 }
 
                 const baseAmount = summary.baseAmount ?? spinTicketNumber;
-                const totalCharge = summary.totalCharge ?? baseAmount;
                 const feesTotal = cleanAmount((summary.mandatoryFees || 0) + (summary.processingFee || 0));
                 if (processingFeeNote) {
                     processingFeeNote.classList.toggle('hidden', !summary.coverFees);
                 }
-                chargeSummaryText.textContent = `Ticket #${spinTicketNumber} base: $${cleanAmount(baseAmount).toFixed(2)} | fees: $${feesTotal.toFixed(2)} | total: $${cleanAmount(totalCharge).toFixed(2)}`;
-                if (payButtonLabel && summary.totalCharge) {
-                    payButtonLabel.textContent = `Pay $${cleanAmount(totalCharge).toFixed(2)}`;
+                // Do not reveal total; keep the surprise for the wheel.
+                chargeSummaryText.textContent = `Ticket #${spinTicketNumber} base: $${cleanAmount(baseAmount).toFixed(2)}${summary.coverFees ? ` | processing: +2.2% + $0.30` : ''}`;
+                if (payButtonLabel) {
+                    payButtonLabel.textContent = 'Pay Now';
                 }
             }
 
@@ -998,9 +998,48 @@
 
                     updateChargeSummaryUI(chargeSummary);
 
-                    // Prevent toggling fees after PaymentIntent is created (would desync server totals)
+                    // Enable dynamic toggle to recreate PI with new coverFees
                     if (coverFeesCheckbox) {
-                        coverFeesCheckbox.disabled = true;
+                        coverFeesCheckbox.disabled = false;
+                        coverFeesCheckbox.addEventListener('change', async () => {
+                            try {
+                                showGlobalLoadingOverlay('Updating totals...', true);
+                                // Unmount existing payment element
+                                const container = document.getElementById('spin-payment-element-container');
+                                while (container.firstChild) container.removeChild(container.firstChild);
+
+                                // Request a new PaymentIntent with updated coverFees
+                                const requestData = {
+                                    name: spinNameInput.value.trim(),
+                                    email: spinEmailInput.value.trim(),
+                                    phone: spinPhoneInput.value.trim(),
+                                    coverFees: coverFeesCheckbox.checked
+                                };
+
+                                const response = await fetch(`${functionsBaseUrl}/createSpinPaymentIntentHttp`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(requestData)
+                                });
+                                const payload = await response.json().catch(() => ({}));
+                                if (!response.ok) {
+                                    throw new Error(payload.message || 'Could not update payment intent.');
+                                }
+
+                                // Update state and remount elements
+                                spinTicketNumber = payload.ticketNumber;
+                                chargeSummary = payload.chargeSummary || null;
+                                elements = stripe.elements({ clientSecret: payload.clientSecret, fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap' }] });
+                                const paymentElement = elements.create('payment');
+                                paymentElement.mount(spinPaymentElementContainer);
+                                updateChargeSummaryUI(chargeSummary);
+                                hideGlobalLoadingOverlay();
+                            } catch (err) {
+                                console.error('Error updating PaymentIntent on fee toggle:', err);
+                                showCustomPopup('Update Error', err.message || 'Failed to update totals.');
+                                hideGlobalLoadingOverlay();
+                            }
+                        }, { once: false });
                     }
 
                     // Hide user info form, show payment element
