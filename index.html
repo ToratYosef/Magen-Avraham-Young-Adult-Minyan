@@ -998,6 +998,11 @@
 
                     updateChargeSummaryUI(chargeSummary);
 
+                    // Prevent toggling fees after PaymentIntent is created (would desync server totals)
+                    if (coverFeesCheckbox) {
+                        coverFeesCheckbox.disabled = true;
+                    }
+
                     // Hide user info form, show payment element
                     initialForm.classList.add('hidden');
                     spinStripePaymentElement.classList.remove('hidden');
