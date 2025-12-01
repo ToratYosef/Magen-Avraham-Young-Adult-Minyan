@@ -245,7 +245,7 @@
                 <input type="text" id="manual-name" placeholder="Full Name" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
                 <input type="email" id="manual-email" placeholder="Email" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
                 <input type="tel" id="manual-phone" placeholder="Phone" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
-                <input type="number" id="manual-amount" placeholder="Amount ($1-$500)" min="1" max="500" class="w-full p-3 rounded-lg bg-ma-navy/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold">
+                <p class="text-sm text-gray-300">Ticket number and amount will be assigned automatically.</p>
                 <button id="submitManualSpinButton" class="w-full py-3 rounded-full bg-ma-gold text-ma-navy font-bold hover:bg-ma-gold/80 transition-colors">
                     Add to Wheel & Spin
                 </button>
@@ -630,10 +630,8 @@
             const name = document.getElementById('manual-name').value.trim();
             const email = document.getElementById('manual-email').value.trim();
             const phone = document.getElementById('manual-phone').value.trim();
-            const amount = parseInt(document.getElementById('manual-amount').value);
-
-            if (!name || !email || !phone || !amount || amount < 1 || amount > 500) {
-                alert('Please fill all fields with valid data (amount: 1-500).');
+            if (!name || !email || !phone) {
+                alert('Please fill all fields with valid data.');
                 return;
             }
 
@@ -653,7 +651,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${idToken}`
                     },
-                    body: JSON.stringify({ name, email, phone, amount })
+                    body: JSON.stringify({ name, email, phone })
                 });
 
                 const data = await response.json();
@@ -667,15 +665,9 @@
                 document.getElementById('manual-name').value = '';
                 document.getElementById('manual-email').value = '';
                 document.getElementById('manual-phone').value = '';
-                document.getElementById('manual-amount').value = '';
-                
-                // Add to wheel and spin
-                wheelData.push({ name, email, phoneNumber: phone, id: data.ticketId });
-                const canvas = document.getElementById('wheelCanvas');
-                drawWheel(canvas);
-                document.getElementById('wheelModal').classList.remove('hidden');
-                
-                alert(`Manual ticket #${data.ticketId} created! Adding to wheel...`);
+
+                const assignedTicket = data.ticketNumber || data.ticketId;
+                alert(`Manual ticket #${assignedTicket} created and marked as paid.`);
             } catch (error) {
                 alert(`Error: ${error.message}`);
             }
