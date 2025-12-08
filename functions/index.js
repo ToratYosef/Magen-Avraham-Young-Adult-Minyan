@@ -14,15 +14,25 @@ admin.initializeApp();
 // project and set the STRIPE_SECRET_KEY environment variable (or functions config `stripe.secret_key`)
 // using your **Stripe TEST Secret Key** (sk_test_...).
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || (functions.config().stripe && functions.config().stripe.secret_key);
-
-if (!stripeSecretKey) {
-    throw new Error('Missing Stripe secret key. Set STRIPE_SECRET_KEY env var or functions config stripe.secret_key.');
-}
-
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const stripeEmailWebhookSecret = process.env.STRIPE_EMAIL_WEBHOOK_SECRET;
 
-const stripe = require('stripe')(stripeSecretKey);
+let stripe;
+
+function getStripeClient() {
+    if (!stripeSecretKey) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Stripe secret key is not configured. Set STRIPE_SECRET_KEY or functions config stripe.secret_key.'
+        );
+    }
+
+    if (!stripe) {
+        stripe = require('stripe')(stripeSecretKey);
+    }
+
+    return stripe;
+}
 
 // CORS handler for HTTP endpoints only (callable functions handle CORS automatically)
 const corsHandler = cors({
@@ -785,7 +795,8 @@ async function createSpinPaymentIntentCore(data) {
     const amountInCents = Math.round(totalCharge * 100);
 
     try {
-        const paymentIntent = await stripe.paymentIntents.create({
+        const stripeClient = getStripeClient();
+        const paymentIntent = await stripeClient.paymentIntents.create({
             amount: amountInCents,
             currency: 'usd',
             description: `${SOURCE_APP_TAG} - Ticket ${ticketNumber}`,
@@ -826,7 +837,9 @@ async function createSpinPaymentIntentCore(data) {
             }
         }
 
-        throw error;
+        console.error('Stripe PaymentIntent creation failed:', error);
+        const message = error?.raw?.message || error.message || 'Stripe payment failed. Please try again later.';
+        throw new functions.https.HttpsError('internal', message);
     }
 }
 
@@ -871,12 +884,13 @@ exports.createSpinPaymentIntentHttp = functions.runWith({ runtime: 'nodejs20' })
                 'invalid-argument': 400,
                 'resource-exhausted': 429,
                 'permission-denied': 403,
+                'internal': 500,
             };
             const statusCode = statusMap[error.code] || 500;
             return res.status(statusCode).json({ message: error.message });
         }
 
-        return res.status(500).json({ message: 'Failed to create PaymentIntent for spin game.' });
+        return res.status(500).json({ message: error?.message || 'Failed to create PaymentIntent for spin game.' });
     }
 });
 
@@ -898,7 +912,8 @@ exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' })
         
         const amountInCents = Math.round(cleanedAmount * 100);
 
-        const paymentIntent = await stripe.paymentIntents.create({
+        const stripeClient = getStripeClient();
+        const paymentIntent = await stripeClient.paymentIntents.create({
             amount: amountInCents,
             currency: 'usd',
             description: `${SOURCE_APP_TAG} Donation`, 
@@ -928,6 +943,9 @@ exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' })
 
     } catch (error) {
         console.error('Error creating Stripe PaymentIntent for donation:', error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
         throw new functions.https.HttpsError('internal', 'Failed to create donation PaymentIntent.');
     }
 });
@@ -938,17 +956,25 @@ exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' })
  */
 exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onRequest(async (req, res) => {
     const sig = req.headers['stripe-signature'];
-    
+
     // NOTE: For sandbox testing, ensure you use the **Stripe TEST Webhook Secret** for this endpoint.
     if (!stripeWebhookSecret) {
         console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
         return res.status(500).send('Webhook Error: Missing webhook secret');
     }
-    
+
+    let stripeClient;
+    try {
+        stripeClient = getStripeClient();
+    } catch (error) {
+        console.error('Stripe client unavailable for webhook processing:', error);
+        return res.status(500).send(error.message || 'Webhook Error: Stripe not configured');
+    }
+
     let event;
 
     try {
-      event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret);
+      event = stripeClient.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -1045,9 +1071,17 @@ exports.stripeEmailWebhook = functions.runWith({ runtime: 'nodejs20' }).https.on
         return res.status(500).send('Webhook Error: Missing email webhook secret');
     }
 
+    let stripeClient;
+    try {
+        stripeClient = getStripeClient();
+    } catch (error) {
+        console.error('Stripe client unavailable for email webhook processing:', error);
+        return res.status(500).send(error.message || 'Webhook Error: Stripe not configured');
+    }
+
     let event;
     try {
-        event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeEmailWebhookSecret);
+        event = stripeClient.webhooks.constructEvent(req.rawBody, sig, stripeEmailWebhookSecret);
     } catch (err) {
         console.error(`Email webhook signature verification failed: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -1299,7 +1333,8 @@ exports.refundTicketPaymentHttp = functions.runWith({ runtime: 'nodejs20' }).htt
                 return res.status(400).json({ message: `Ticket #${ticketId} was already refunded.` });
             }
 
-            const refund = await stripe.refunds.create({ payment_intent: paymentIntentId });
+            const stripeClient = getStripeClient();
+            const refund = await stripeClient.refunds.create({ payment_intent: paymentIntentId });
 
             await ticketRef.set({
                 status: 'refunded',
