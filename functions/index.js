@@ -801,6 +801,8 @@ async function createSpinPaymentIntentCore(data) {
             currency: 'usd',
             description: `${SOURCE_APP_TAG} - Ticket ${ticketNumber}`,
             payment_method_types: ['card'],
+            // Stripe will automatically email the receipt on success.
+            receipt_email: email,
             metadata: {
                 name,
                 email,
@@ -916,8 +918,10 @@ exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' })
         const paymentIntent = await stripeClient.paymentIntents.create({
             amount: amountInCents,
             currency: 'usd',
-            description: `${SOURCE_APP_TAG} Donation`, 
+            description: `${SOURCE_APP_TAG} Donation`,
             payment_method_types: ['card'],
+            // Stripe will automatically email the receipt on success.
+            receipt_email: email,
             metadata: {
                 name,
                 email,
@@ -1087,33 +1091,9 @@ exports.stripeEmailWebhook = functions.runWith({ runtime: 'nodejs20' }).https.on
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object;
-
-        const { name, email, ticketNumber, entryType } = paymentIntent.metadata || {};
-
-        if (!email || !name) {
-            console.warn('Missing email or name in PaymentIntent metadata; skipping receipt email.');
-            return res.status(200).send('Processed without email send (missing metadata).');
-        }
-
-        try {
-            await saveEmailToCollection(email, name);
-
-            // Amount in dollars
-            const amountCharged = cleanAmount(paymentIntent.amount / 100);
-            const ticketNum = ticketNumber || 'N/A';
-
-            await sendReceiptEmail(email, name, ticketNum, amountCharged, 'card');
-
-            return res.status(200).send('Receipt email sent.');
-        } catch (error) {
-            console.error('Error sending receipt email:', error);
-            return res.status(500).send('Internal Error sending receipt email.');
-        }
-    } else {
-        return res.status(200).send('Webhook event ignored (uninteresting type).');
-    }
+    // Stripe now sends receipt emails automatically using the receipt_email set on PaymentIntents.
+    // This webhook remains for compatibility but no longer sends custom emails.
+    return res.status(200).send('Receipt handling managed by Stripe.');
 });
 
 
