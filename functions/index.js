@@ -539,17 +539,18 @@ exports.adminResetPasswordByEmail = functions.runWith({ runtime: 'nodejs20' }).h
 // --- TICKET CLEANUP FUNCTIONS (Spin Tickets) ---
 
 /**
- * Scheduled function to remove reserved spin tickets (spin_tickets) older than 5 minutes.
+ * Scheduled function to remove reserved spin tickets (spin_tickets) older than 7 minutes.
+ * Runs every 7 minutes.
  */
-exports.cleanupReservedTickets = functions.runWith({ runtime: 'nodejs20' }).pubsub.schedule('every 5 minutes').onRun(async (context) => {
+exports.cleanupReservedTickets = functions.runWith({ runtime: 'nodejs20' }).pubsub.schedule('every 7 minutes').onRun(async (context) => {
     const db = admin.firestore();
-    const fiveMinutesInMs = 5 * 60 * 1000; 
-    const fiveMinutesAgo = new Date(Date.now() - fiveMinutesInMs); 
+    const sevenMinutesInMs = 7 * 60 * 1000;
+    const sevenMinutesAgo = new Date(Date.now() - sevenMinutesInMs);
 
     try {
         const reservedTicketsSnapshot = await db.collection('spin_tickets')
             .where('status', '==', 'reserved')
-            .where('timestamp', '<', fiveMinutesAgo) 
+            .where('timestamp', '<', sevenMinutesAgo)
             .get();
 
         if (reservedTicketsSnapshot.empty) {
