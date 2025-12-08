@@ -1,2 +1,2 @@
-# Mi Keamcha Yisrael Raffle
+# Mi Kamcha Yisroel Raffle
 Hello

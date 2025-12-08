@@ -175,15 +175,15 @@ function getEmailTemplate(title, content) {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.png" alt="Mi Keamcha Yisrael" class="logo">
-            <h1 class="title">MI KEAMCHA YISRAEL</h1>
+            <img src="https://raw.githubusercontent.com/ToratYosef/Magen-Avraham-Young-Adult-Minyan/refs/heads/main/assets/logo.png" alt="Mi Kamcha Yisroel" class="logo">
+            <h1 class="title">MI KAMCHA YISROEL</h1>
             <p class="subtitle">${title}</p>
         </div>
         <div class="content">
             ${content}
         </div>
         <div class="footer">
-            <p><strong>Mi Keamcha Yisrael</strong><br>
+            <p><strong>Mi Kamcha Yisroel</strong><br>
             Supporting our community through charitable initiatives</p>
             <p style="margin-top: 15px;">
                 <a href="https://mi-keamcha-yisrael.web.app">Home</a> | 
@@ -191,7 +191,7 @@ function getEmailTemplate(title, content) {
                 <a href="https://mi-keamcha-yisrael.web.app/privacy.html">Privacy</a>
             </p>
             <p style="margin-top: 10px; font-size: 11px;">
-                &copy; 2026 Mi Keamcha Yisrael. All Rights Reserved.<br>
+                &copy; 2026 Mi Kamcha Yisroel. All Rights Reserved.<br>
                 Questions? Text us at <a href="sms:9295845753">929-584-5753</a>
             </p>
         </div>
@@ -207,7 +207,7 @@ function getEmailTemplate(title, content) {
 async function sendReceiptEmail(recipientEmail, recipientName, ticketNumber, amount, paymentMethod = 'card') {
     const content = `
         <p>Dear ${recipientName},</p>
-        <p>Thank you for your generous contribution to Mi Keamcha Yisrael!</p>
+        <p>Thank you for your generous contribution to Mi Kamcha Yisroel!</p>
         
         <div class="highlight-box">
             <p class="label">Your Ticket Number</p>
@@ -242,7 +242,7 @@ async function sendReceiptEmail(recipientEmail, recipientName, ticketNumber, amo
         
         <p style="font-size: 14px; margin-top: 20px;">
             <strong>Organization Information:</strong><br>
-            Mi Keamcha Yisrael<br>
+            Mi Kamcha Yisroel<br>
             Brooklyn, NY<br>
             EIN: [Your EIN Number Here]
         </p>
@@ -261,7 +261,7 @@ async function sendReceiptEmail(recipientEmail, recipientName, ticketNumber, amo
     `;
 
     const mailOptions = {
-        from: process.env.EMAIL_FROM || '"Mi Keamcha Yisrael" <sales@secondhandcell.com>',
+        from: process.env.EMAIL_FROM || '"Mi Kamcha Yisroel" <sales@secondhandcell.com>',
         to: recipientEmail,
         subject: `Tax-Deductible Receipt – Ticket #${ticketNumber} ($${amount.toFixed(2)})`,
         html: getEmailTemplate('Tax-Deductible Donation Receipt', content),
@@ -730,7 +730,7 @@ const ALLOWED_PAYMENT_ORIGINS = [
 
 async function createSpinPaymentIntentCore(data) {
     let ticketNumber;
-    const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Spin';
+    const SOURCE_APP_TAG = 'Mi Kamcha Yisroel Spin';
     const TOTAL_TICKETS = 500;
 
     const { name, email, phone, coverFees } = data || {};
@@ -886,7 +886,7 @@ exports.createSpinPaymentIntentHttp = functions.runWith({ runtime: 'nodejs20' })
  * (Kept for the separate Donate button functionality)
  */
 exports.createDonationPaymentIntent = functions.runWith({ runtime: 'nodejs20' }).https.onCall(async (data, context) => {
-    const SOURCE_APP_TAG = 'Mi Keamcha Yisrael Donation';
+    const SOURCE_APP_TAG = 'Mi Kamcha Yisroel Donation';
 
     try {
         const { amount, name, email, phone } = data; // Removed 'referral'
@@ -989,7 +989,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
                     processingFeePaid: cleanAmount(processingFee || (coverFees === 'true' ? totalFeesPaid : 0)),
                     mandatoryFeesPaid: cleanAmount(mandatoryFees || (totalFeesPaid - (processingFee || 0))),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    sourceApp: sourceApp || 'Mi Keamcha Yisrael Spin (Webhook)',
+                    sourceApp: sourceApp || 'Mi Kamcha Yisroel Spin (Webhook)',
                 });
 
             // Update the temporary PI status doc (if it existed) to prevent reprocessing
@@ -1011,7 +1011,7 @@ exports.stripeWebhook = functions.runWith({ runtime: 'nodejs20' }).https.onReque
                 baseDonationAmount: donationBaseAmount, // Store the intended donation amount
                 webhookProcessed: true,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                sourceApp: sourceApp || 'Mi Keamcha Yisrael Donation (Webhook)'
+                sourceApp: sourceApp || 'Mi Kamcha Yisroel Donation (Webhook)'
             });
         }
         
@@ -1178,7 +1178,7 @@ exports.addManualTicketHttp = functions.runWith({ runtime: 'nodejs20' }).https.o
 
             const db = admin.firestore();
             const TOTAL_TICKETS = 500;
-            const SOURCE_APP = 'Mi Keamcha Yisrael Admin (Manual Cash)';
+            const SOURCE_APP = 'Mi Kamcha Yisroel Admin (Manual Cash)';
             const firstName = name.split(' ')[0] || name;
 
             let ticketNumber = null;
