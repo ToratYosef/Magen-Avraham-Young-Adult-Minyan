@@ -544,17 +544,17 @@
                             <input type="tel" id="spin-phone" name="phone" placeholder="Phone Number" class="w-full py-3 px-4 rounded-lg bg-slate-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ma-gold transition-all duration-300" required>
                         </div>
 
-                        <div class="flex items-start space-x-3 bg-ma-slate/40 p-3 rounded-lg">
-                            <input type="checkbox" id="cover-fees" class="mt-1 h-5 w-5 rounded border-ma-gold text-ma-gold focus:ring-ma-gold">
-                            <div class="flex-1 text-sm text-gray-200">
-                                <label for="cover-fees" class="font-semibold text-white">I would like to pay the card fees too</label>
-                                <div class="flex items-center space-x-2 mt-1 text-gray-300">
-                                    <span id="cover-fees-tooltip-wrapper" class="relative inline-flex items-center cursor-pointer select-none">
-                                        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-ma-gold text-xs font-bold text-ma-gold mr-1">?</span>
-                                        <span class="text-xs">2.2% + $0.30 per transaction</span>
-                                        <span id="cover-fees-tooltip" class="tooltip hidden absolute top-6 left-0 w-56 bg-black/80 text-xs text-gray-100 p-2 rounded-lg border border-ma-gold">If selected, we will add 2.2% + $0.30 so your full ticket amount goes to the raffle.</span>
-                                    </span>
-                                </div>
+                        <div class="bg-ma-slate/40 p-4 rounded-lg border border-ma-gold/30">
+                            <div class="flex items-center space-x-3">
+                                <input type="checkbox" id="cover-fees" class="h-5 w-5 rounded border-ma-gold text-ma-gold focus:ring-ma-gold cursor-pointer flex-shrink-0">
+                                <label for="cover-fees" class="font-semibold text-white cursor-pointer">I would like to pay the card fees too</label>
+                            </div>
+                            <div class="mt-3 ml-8 flex items-center space-x-2 text-gray-300">
+                                <span id="cover-fees-tooltip-wrapper" class="relative inline-flex items-center cursor-pointer select-none">
+                                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-ma-gold text-xs font-bold text-ma-gold mr-2">?</span>
+                                    <span class="text-xs">2.2% + $0.30 per transaction</span>
+                                    <span id="cover-fees-tooltip" class="tooltip hidden absolute bottom-full left-0 mb-2 w-56 bg-black/80 text-xs text-gray-100 p-2 rounded-lg border border-ma-gold whitespace-normal z-10">If selected, we will add 2.2% + $0.30 so your full ticket amount goes to the raffle.</span>
+                                </span>
                             </div>
                         </div>
                         
