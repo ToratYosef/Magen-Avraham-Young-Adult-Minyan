@@ -464,22 +464,23 @@
                     <div class="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
                         <!-- Flyer Placeholder (Left) -->
                         <div class="glass-panel rounded-2xl p-4 border border-ma-gold/40 shadow-xl flex items-center justify-center">
-                            <div class="w-full aspect-[4/5] bg-gradient-to-br from-ma-slate/60 to-ma-dark/60 rounded-xl border border-ma-gold/30 flex items-center justify-center">
-                                <span class="text-gray-300 text-lg font-semibold">Flyer Placeholder</span>
-                            </div>
+                            <img src="/assets/flyer.jpeg" 
+                                onerror="this.onerror=null; this.src='https://placehold.co/400x500/1e293b/B89A5F?text=Event+Flyer'"
+                                alt="Event Flyer" class="w-full h-auto rounded-xl object-contain max-h-[600px]">
                         </div>
 
-                        <!-- Video Embed Placeholder (Right) -->
+                        <!-- Video Embed (Right) -->
                         <div class="glass-panel rounded-2xl p-4 border border-ma-gold/40 shadow-xl">
-                            <div class="relative w-full aspect-video overflow-hidden rounded-xl border border-ma-gold/30 bg-black/40">
-                                <iframe
-                                    class="absolute inset-0 w-full h-full"
-                                    src="https://www.youtube.com/embed/VIDEO_ID_HERE?controls=0&modestbranding=1&rel=0"
-                                    title="Raffle Video"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowfullscreen
-                                ></iframe>
+                            <div class="relative w-full aspect-[9/16] overflow-hidden rounded-xl border border-ma-gold/30 bg-black/40">
+                                <video 
+                                    class="absolute inset-0 w-full h-full object-cover"
+                                    controls
+                                    controlsList="nodownload"
+                                    playsinline
+                                >
+                                    <source src="/assets/Video.mp4" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
                             </div>
                         </div>
                     </div>
